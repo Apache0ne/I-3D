@@ -36,7 +36,7 @@ def main():
     if not np.allclose(np.array(arm.matrix_world),np.eye(4),atol=1e-4):
         raise ValueError('Armature has an unexpected world transform')
     conversion=soma_to_character_matrix(bridge['template_scale'],bridge['template_translation'],bridge['forward'])
-    rest=np.asarray(ref['bind_world_soma'],float)
+    rest=np.asarray(ref['rest_world_soma'],float)
     blender_rest={n:np.asarray(arm.data.bones[n].matrix_local) for n in names}
     scene=bpy.context.scene;scene.render.fps=30;scene.frame_start=1;scene.frame_end=len(motion)
     for j,frame in enumerate(motion):
