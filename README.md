@@ -31,8 +31,9 @@ MotionBricks Git LFS assets can be hydrated with `python scripts/hydrate_motionb
 python scripts/pipeline.py prepare --image person.png --output outputs/character --forward +X
 
 # Stage 2 — manually open outputs/character/04_soma_character.glb in Blender.
-# Keep one armature; pose frame 1 (Start), keyframe every bone;
-# pose frame 2 (Target), keyframe every bone. Save character_poses.blend.
+# Keep one armature; edit its bones in POSE MODE (move the Hips pose bone
+# for world travel; do not move/scale the Armature object). Keyframe all bones
+# at frame 1 (Start) and frame 2 (Target). Save character_poses.blend.
 
 # Stage 3 — MotionBricks generation + animated GLB
 python scripts/pipeline.py animate --blend character_poses.blend --output outputs/character
