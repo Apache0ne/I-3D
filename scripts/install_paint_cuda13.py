@@ -24,9 +24,23 @@ CUDA_WHEEL_INDEX = "https://download.pytorch.org/whl/cu130"
 
 
 def run(args, *, env=None, cwd=None):
+    """Stream installer output in Colab; include the actual failing stage."""
     cmd = list(map(str, args))
     print("\nRUN:", " ".join(cmd), flush=True)
-    subprocess.run(cmd, check=True, env=env, cwd=cwd)
+    proc = subprocess.Popen(cmd, env=env, cwd=cwd, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, text=True, bufsize=1)
+    tail = []
+    for line in proc.stdout:
+        print(line, end="", flush=True)
+        tail.append(line)
+        if len(tail) > 120:
+            tail.pop(0)
+    code = proc.wait()
+    if code:
+        raise RuntimeError(
+            f"Paint installer command failed (exit {code}): {' '.join(cmd)}\n"
+            + "".join(tail[-60:])
+        )
 
 
 def main():
@@ -79,7 +93,10 @@ def main():
         print("Original requirements exclusions:", skipped)
         run([uv, "pip", "install", "--python", py, "-r", req,
              "--index-url", "https://pypi.org/simple"])
-        # CuPy must match CUDA 13; never mix cupy-cuda12x here.\n        run([uv, "pip", "install", "--python", py, "cupy-cuda13x==13.6.0",\n             "--index-url", "https://pypi.org/simple"])\n        # bpy 4.0 wheel is archived on Blender\'s original package index.
+        # CuPy must match CUDA 13; never mix cupy-cuda12x here.
+        run([uv, "pip", "install", "--python", py, "cupy-cuda13x==13.6.0",
+             "--index-url", "https://pypi.org/simple"])
+        # bpy 4.0 wheel is archived on Blender's original package index.
         run([uv, "pip", "install", "--python", py, "bpy==4.0.0",
              "--extra-index-url", "https://download.blender.org/pypi/"])
 
