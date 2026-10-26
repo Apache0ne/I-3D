@@ -1,0 +1,34 @@
+name: Vendor original upstream source code
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/vendor_sources.py
+      - .github/workflows/vendor.yml
+permissions:
+  contents: write
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Clone and copy source under original licenses
+        run: python scripts/vendor_sources.py --destination vendor
+      - name: Commit exact upstream source files and revision manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vendor
+          if git diff --staged --quiet; then
+            echo "No changes to vendor"
+          else
+            git commit -m "Vendor upstream inference source trees with license notices"
+            git push origin HEAD:main
+          fi
