@@ -30,5 +30,7 @@ jobs:
             echo "No changes to vendor"
           else
             git commit -m "Vendor upstream inference source trees with license notices"
+            git fetch origin main
+            git rebase origin/main
             git push origin HEAD:main
           fi
