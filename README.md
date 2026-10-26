@@ -22,7 +22,7 @@
 
 **Each upstream model needs its original tested environment.** Hi3D documents Python 3.10 / CUDA 12.4 and very high GPU memory for its 1536-resolution mode; TokenRig recommends >=14 GB VRAM; MotionBricks uses TensorRT. Do not install incompatible PyTorch stacks into a single venv. Set `I3D_HI3D_PYTHON`, `I3D_PAINT_PYTHON`, `I3D_TOKENRIG_PYTHON`, and the `--motion-python` option to the correct environment interpreters. Blender is a separate executable. Pretrained files are **not included**.
 
-Git LFS assets must be pulled separately from the original projects, particularly MotionBricks `soma_base_skel_minimal_no_root.usd`, and the pretrained ONNX models. Hi3D's pipeline requires the coarse Hunyuan3D-2mini dependencies installed per the upstream Hi3D documentation. For Hunyuan3D-Paint, download the RealESRGAN checkpoint according to its README.
+MotionBricks Git LFS assets can be hydrated with `python scripts/hydrate_motionbricks.py --precision fp32`. This retrieves the original 30-joint reference USD and ONNX graph without committing weights to I-3D. Other model weights must be downloaded under their upstream terms. Hi3D's pipeline requires the coarse Hunyuan3D-2mini dependencies installed per the upstream Hi3D documentation. For Hunyuan3D-Paint, download the RealESRGAN checkpoint according to its README.
 
 ## Run
 
@@ -44,7 +44,7 @@ python scripts/pipeline.py animate --blend character_poses.blend --output output
 
 The `blender_bridge.py` does **not** pretend to use NVIDIA's topology-constrained `rig_soma_body_mesh.py` with an arbitrary Hi3D mesh. Instead, it aligns the actual SOMA reference rig with the mesh and remaps existing TokenRig weights to the nearest joints. This is an approximate **spatial skin-transfer** method; its accuracy depends on the canonical pose, the TokenRig joint positions, and the correct `--forward` selection. It rejects degenerate scales and gross misalignment, and writes `*.bridge.json` with mapping diagnostics. **Manual skin weight and joint review remains necessary before calling the result production-ready.** A-pose/T-pose inputs are preferable.
 
-`export_soma_reference.py` reads the actual MotionBricks 30-joint USD bind transforms. It rejects Git LFS pointer files and implausible units. NVIDIA's alternative `tools/rig_soma_body_mesh.py` requires exactly 18,056 vertices with identical SOMA template topology and **must not** be applied directly to an arbitrary Hi3D mesh.
+`export_soma_reference.py` composes the actual MotionBricks 30-joint USD **local rest transforms into world rest transforms**, exactly as the original MotionBricks skeleton loader expects. USD bind transforms are different from local rest transforms and must not be substituted. It rejects Git LFS pointer files and implausible units. NVIDIA's alternative `tools/rig_soma_body_mesh.py` requires exactly 18,056 vertices with identical SOMA template topology and **must not** be applied directly to an arbitrary Hi3D mesh.
 
 ## Validation
 
