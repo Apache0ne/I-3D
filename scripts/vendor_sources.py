@@ -49,8 +49,21 @@ def main():
             # Preserve release sources and licenses/notice, but not .git or heavyweight artifacts.
             shutil.copytree(tmp,out,ignore=lambda dir,files:[f for f in files if f in EXCLUDED or
                             (Path(f).suffix.lower() in WEIGHT_SUFFIX and f not in ('pyproject.toml',))])
-            manifest[name]={'upstream':url,'commit':sha,'copied_source':'vendor/'+name}
-            print(name,sha,flush=True)
+            # Source repositories can contain Git LFS pointer TEXT even when
+            # checkout skips large blobs. GitHub rejects commits referring to
+            # LFS objects that I-3D does not own. Preserve original source but
+            # omit these pointer-only assets; download the real files from their
+            # original repositories when running inference.
+            omitted=[]
+            for candidate in out.rglob('*'):
+                if not candidate.is_file() or candidate.stat().st_size > 512:
+                    continue
+                if candidate.read_bytes().startswith(b'version https://git-lfs.github.com/spec/v1'):
+                    omitted.append(str(candidate.relative_to(out)))
+                    candidate.unlink()
+            manifest[name]={'upstream':url,'commit':sha,'copied_source':'vendor/'+name,
+                            'omitted_lfs_pointers':omitted}
+            print(name,sha,'omitted LFS placeholders:',len(omitted),flush=True)
     (dst/'SOURCE_REVISIONS.json').write_text(json.dumps(manifest,indent=2)+'\n')
 
 if __name__=='__main__':main()
