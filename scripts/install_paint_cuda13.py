@@ -69,7 +69,8 @@ def main():
         for line in original.splitlines():
             stripped = line.strip().lower().replace("_", "-")
             if stripped.startswith(("--extra-index-url", "--index-url")) or \
-               stripped.startswith("bpy==4.0") or stripped == "deepspeed":
+               stripped.startswith("bpy==4.0") or stripped == "deepspeed" or \
+               stripped.startswith("cupy-cuda12x"):
                 skipped.append(line.strip())
                 continue
             filtered.append(line)
@@ -78,7 +79,7 @@ def main():
         print("Original requirements exclusions:", skipped)
         run([uv, "pip", "install", "--python", py, "-r", req,
              "--index-url", "https://pypi.org/simple"])
-        # bpy 4.0 wheel is archived on Blender's original package index.
+        # CuPy must match CUDA 13; never mix cupy-cuda12x here.\n        run([uv, "pip", "install", "--python", py, "cupy-cuda13x>=14.0.0",\n             "--index-url", "https://pypi.org/simple"])\n        # bpy 4.0 wheel is archived on Blender\'s original package index.
         run([uv, "pip", "install", "--python", py, "bpy==4.0.0",
              "--extra-index-url", "https://download.blender.org/pypi/"])
 
