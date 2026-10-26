@@ -2,6 +2,10 @@
 
 **Research implementation, October 2026.** One canonical textured mesh is created and rigged once. The user edits *the same 3D character* at two Blender frames; MotionBricks synthesizes the transition. There is no 2D pose editor, no duplicate mesh reconstruction, and no requirement to retrain MotionBricks.
 
+## Google Colab notebook
+
+Open [I-3D_End_to_End_Colab.ipynb](notebooks/I-3D_End_to_End_Colab.ipynb) in [Google Colab](https://colab.research.google.com/github/Apache0ne/I-3D/blob/main/notebooks/I-3D_End_to_End_Colab.ipynb). It installs separate model environments, downloads the original external model assets, walks through geometry, paint, auto-rigging, SOMA bridge, two manually authored 3D poses, and MotionBricks inference/export. Use an NVIDIA GPU; heavier Hi3D modes may exceed Colab GPU memory. The notebook has not been executed or validated in Colab.
+
 ## End-to-end pipeline
 
 | Stage | Original implementation | Output |
