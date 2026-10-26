@@ -1,8 +1,8 @@
 __pycache__/
 *.pyc
 .venv/
-models/
-outputs/
+/models/
+/outputs/
 *.safetensors
 *.onnx
 *.ckpt
