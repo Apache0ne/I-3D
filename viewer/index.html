@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>I-3D | 3D Production Viewer</title>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"}}</script>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,Arial,sans-serif;color:#e9edf8;background:#10151f;font-size:12px;--line:#303b4c;--panel:#192332;--accent:#5cafff;--muted:#9ca9ba}
+*{box-sizing:border-box}body{margin:0;overflow:hidden}button,select,input{font:inherit;accent-color:#62b3ff}button,select,input[type=number]{background:#243044;border:1px solid #3a4960;color:#eef3fd;border-radius:5px;padding:6px 8px}button{cursor:pointer}button:hover{background:#344b67}button:disabled{opacity:.45;cursor:default}button.active{background:#164674;border-color:#75b8ff}select{max-width:100%;width:100%}input[type=range]{width:100%;padding:0}input[type=checkbox]{margin:0 5px 0 0}.app{height:100vh;display:grid;grid-template-columns:minmax(0,1fr) 330px;grid-template-rows:50px minmax(0,1fr) 28px}.header{grid-column:1/-1;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px;padding:0 15px;background:#131c29}.brand{font-size:18px;letter-spacing:.05em;font-weight:850;color:#f5f7ff}.brand span{color:var(--accent)}.tag{font-size:10px;background:#23354b;border:1px solid #3c5875;border-radius:4px;padding:3px 6px;color:#aed5ff}.header .right{margin-left:auto;display:flex;gap:7px;align-items:center}#status{color:#b0c2d3;max-width:48vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.canvas-area{position:relative;overflow:hidden;background:#0e131c;display:flex;min-width:0}.view{position:relative;flex:1;min-width:0;overflow:hidden}.view.compare{border-left:2px solid #517390}.view canvas{display:block;width:100%;height:100%}.view-title{position:absolute;top:14px;left:15px;background:#101c29cf;color:#e2edff;border:1px solid #31435b;padding:5px 9px;border-radius:5px;pointer-events:none;z-index:2}.overlay{position:absolute;inset:0;pointer-events:none;overflow:hidden}.joint-label{position:absolute;transform:translate(-50%,-125%);padding:2px 4px;border-radius:3px;background:#101721c9;color:#a9d9ff;border:1px solid #436488;font-size:10px;white-space:nowrap}.sidebar{background:#151e2b;border-left:1px solid var(--line);overflow:auto;padding:10px 12px 28px}.section{border-bottom:1px solid #324054;padding:10px 1px 12px}.section h3{margin:1px 0 9px;color:#d7e3f8;font-size:13px;display:flex;align-items:center;justify-content:space-between}.field{margin:6px 0}.field label{display:block;color:#b7c4d9;font-size:11px;margin-bottom:4px}.row{display:flex;gap:7px;align-items:center}.row>*{min-width:0}.row>button{flex:1}.row>select{flex:1}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:6px}.threecol{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.checklist{display:grid;grid-template-columns:1fr 1fr;gap:7px 4px}.checklist label{color:#ccd5e3;display:flex;align-items:center;cursor:pointer}.small{font-size:10px;color:var(--muted);line-height:1.5}.metric{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed #303c4d;padding:4px 0}.metric b{font-variant-numeric:tabular-nums;white-space:nowrap}.warning{background:#432e1d;border:1px solid #885d2c;padding:8px;border-radius:5px;color:#ffdda0;font-size:11px;line-height:1.45}.footer{grid-column:1/-1;background:#121b28;border-top:1px solid #2a3443;display:flex;gap:16px;align-items:center;padding:0 12px;overflow:hidden;color:#abb9cc;font-size:10px}.footer span{white-space:nowrap}.segment{background:#13253c;color:#accbed;border:1px solid #284869;padding:3px 6px;border-radius:3px}#asset-links{max-height:110px;overflow:auto}.asset{display:flex;justify-content:space-between;gap:7px;padding:3px 0}.asset a{color:#92c7ff;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.badge{font-size:10px;border-radius:4px;padding:2px 5px;background:#254338;color:#95ebc5}.absent{color:#7f8ea2}#dropbox{position:absolute;z-index:9;inset:18%;background:#172539ed;border:3px dashed #5eaafa;border-radius:15px;display:none;place-items:center;font-size:18px;pointer-events:none}.axis{font-size:10px;text-align:center;color:#a5b3c5}.preview-source{display:none;max-width:180px;max-height:240px;position:absolute;bottom:16px;left:16px;z-index:2;object-fit:contain;border:1px solid #6c88ae;border-radius:6px;background:#090e17a8}.preview-source.shown{display:block}.button-green{border-color:#368768;background:#163f35}.button-blue{border-color:#4277a8;background:#183657}#error{font-size:11px;color:#ffb4b4;white-space:pre-wrap;max-height:110px;overflow:auto}.spacer{flex:1}.hidden{display:none!important}#fullscreenWrap:fullscreen{height:100vh;width:100vw;background:#10151f}.color-picker{width:38px;height:26px;border:0;background:none;padding:0}details summary{cursor:pointer;color:#bcd7f4;margin:7px 0}details pre{white-space:pre-wrap;word-break:break-word;color:#9ab8df;max-height:160px;overflow:auto}
+@media(max-width:950px){.app{grid-template-columns:minmax(0,1fr) 275px}.sidebar{padding:7px}.header{gap:5px;padding:0 7px}.brand{font-size:15px}}
+@media(max-width:620px){.app{grid-template-columns:1fr;grid-template-rows:48px minmax(250px,1fr) minmax(220px,35%) 28px}.sidebar{border-left:0;border-top:1px solid var(--line)}#status{display:none}}
+</style>
+</head>
+<body>
+<div id="fullscreenWrap" class="app">
+ <header class="header"><div class="brand">I<span>–</span>3D</div><span class="tag">COLAB 3D STUDIO</span><span id="status">Initializing viewer…</span><div class="right"><button id="refresh" title="Refresh stage outputs">Refresh outputs</button><button id="shot" title="Capture 3D viewport as PNG">Screenshot</button><button id="record" title="Record viewport animation to WebM (in your browser)">Record video</button><button id="fullscreen">Fullscreen</button></div></header>
+ <main class="canvas-area" id="canvasArea"><div id="view1" class="view"><div id="title1" class="view-title">Main viewport</div><img id="sourceImage" class="preview-source" alt="Original reference person"><div class="overlay" id="overlay1"></div></div><div id="view2" class="view compare hidden"><div id="title2" class="view-title">Comparison</div><div class="overlay" id="overlay2"></div></div><div id="dropbox">Loading 3D asset…</div></main>
+ <aside class="sidebar">
+  <div class="section"><h3>Pipeline outputs <span class="badge" id="ready">0 / 5</span></h3><div class="field"><label>Primary 3D stage</label><select id="stage"></select></div><div class="row"><label><input type="checkbox" id="compare"> Compare stages</label><button id="swap">Swap stages</button></div><div class="field"><label>Comparison stage</label><select id="compareStage"></select></div><label><input type="checkbox" id="sourceToggle"> Show original image reference</label><div id="asset-links" class="field"></div><p class="small">New output files appear here when generated by notebook cells. Refresh if a recently completed stage is missing.</p></div>
+  <div class="section"><h3>Rendering &amp; lighting</h3><div class="field"><label>Display mode</label><select id="mode"><option value="pbr">PBR materials (original)</option><option value="albedo">Albedo / unlit</option><option value="normals">Surface normals</option><option value="wireframe">PBR + wireframe</option><option value="solid">Studio clay</option><option value="depth">Depth</option><option value="weights">Selected bone skin-weight heatmap</option></select></div><div class="field"><label>Light preset</label><select id="lighting"><option value="studio">Studio (three-point)</option><option value="soft">Soft diffuse</option><option value="sunset">Warm directional</option><option value="flat">Flat/technical</option></select></div><div class="field"><label>Exposure <b id="exposureText">1.0</b></label><input id="exposure" type="range" min="0.2" max="3" step="0.05" value="1"></div><div class="field"><label>Background <input class="color-picker" type="color" value="#0e131c" id="backgroundColor"></label></div><div class="checklist"><label><input type="checkbox" id="ground" checked>Floor &amp; shadows</label><label><input type="checkbox" id="grid" checked>Ground grid</label><label><input type="checkbox" id="axes">Axes indicator</label><label><input type="checkbox" id="bbox">Bounding box</label><label><input type="checkbox" id="skeleton">Skeleton overlay</label><label><input type="checkbox" id="joints">Joint markers</label><label><input type="checkbox" id="labels">Bone labels</label><label><input type="checkbox" id="autorotate">Auto-orbit</label></div><div class="row field"><button id="front">Front</button><button id="side">Side</button><button id="top">Top</button><button id="fit">Fit model</button></div></div>
+  <div class="section"><h3>Animation &amp; timeline <span id="animCount" class="badge">0 clips</span></h3><div class="field"><label>Animation clip</label><select id="clip"></select></div><div class="row"><button id="play">Play</button><button id="restart">Restart</button><button id="stepBack">− 1 frame</button><button id="stepForward">+ 1 frame</button></div><div class="field"><label>Time <b id="timeText">0.00 / 0.00 s</b></label><input id="timeline" type="range" min="0" max="1" step="0.001" value="0"></div><div class="twocol"><div class="field"><label>Speed</label><select id="speed"><option value="0.1">0.1×</option><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="4">4×</option></select></div><div class="field"><label><input type="checkbox" id="loop" checked> Loop animation</label><p class="small">Native GLB AnimationMixer</p></div></div></div>
+  <div class="section"><h3>Pose editor <span class="badge">SOMA 30</span></h3><div class="warning" id="poseHint">Load stage 4 (SOMA rigged character) and set a start and target pose. These edits are saved in Colab and converted to Blender animations headlessly.</div><div class="field"><label>Select joint</label><select id="boneSelect"><option value="">Select SOMA model</option></select></div><div class="checklist field"><label><input type="checkbox" id="gizmo" checked>3D rotation gizmo</label><label><input type="checkbox" id="xray">Skeleton x-ray</label></div><div class="threecol"><div class="field"><label>Rotate X °</label><input type="number" id="rotX" min="-180" max="180" value="0" step="1"></div><div class="field"><label>Rotate Y °</label><input type="number" id="rotY" min="-180" max="180" value="0" step="1"></div><div class="field"><label>Rotate Z °</label><input type="number" id="rotZ" min="-180" max="180" value="0" step="1"></div></div><div class="row field"><button id="applyRotation">Apply joint rotation</button><button id="resetBone">Reset joint</button><button id="resetAll">Reset all joints</button></div><label class="small">Root/Hips translation (glTF Y-up meters)</label><div class="threecol"><div class="field"><label>X</label><input type="number" id="rootX" step="0.05" value="0"></div><div class="field"><label>Y (up)</label><input type="number" id="rootY" step="0.05" value="0"></div><div class="field"><label>Z</label><input type="number" id="rootZ" step="0.05" value="0"></div></div><button id="applyRoot" style="width:100%">Apply root translation</button><div class="twocol field"><button id="saveStart" class="button-blue">Save START pose</button><button id="saveTarget" class="button-green">Save TARGET pose</button><button id="loadStart">Load START pose</button><button id="loadTarget">Load TARGET pose</button></div><div id="poseSaved" class="small">No poses saved yet.</div><div class="field small">When both poses are saved, run the **Generate animation from viewer poses** notebook cell. It uses Blender *headlessly*; you do not have to open Blender or leave Colab.</div></div>
+  <div class="section"><h3>Mesh / scene inspection</h3><div id="stats"></div><div class="field"><label>Mesh or material inspection</label><select id="meshSelect"><option>None</option></select></div><div id="materialStats" class="small"></div><details><summary>Full technical metadata</summary><pre id="technical">No model loaded</pre></details><div id="error"></div></div>
+ </aside>
+ <footer class="footer"><span class="segment">RH glTF Y-up</span><span>SOMA: 30 joints</span><span id="footstats">Ready</span><span class="spacer"></span><span>In Colab • Browser GPU viewer • Model inference stays on Colab GPU</span></footer>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {TransformControls} from 'three/addons/controls/TransformControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {DRACOLoader} from 'three/addons/loaders/DRACOLoader.js';
+import {KTX2Loader} from 'three/addons/loaders/KTX2Loader.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+
+const $ = id => document.getElementById(id);
+const state = {manifest:null, first:null, second:null, compare:false, selectedBone:null,
+               original:new Map(), boneRest:new Map(), loop:true, speed:1, poseAvailable:false,
+               poseCached:{}, activeStage:'', activeCompare:'', originalImage:null,recorder:null,recordChunks:[]};
+const loader = new GLTFLoader();
+const draco = new DRACOLoader();
+draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+loader.setDRACOLoader(draco);
+function status(s,bad=false){$('status').textContent=s; $('status').style.color=bad?'#ffaaaa':'#c4d6e9'; if(bad) $('error').textContent=s;}
+function num(v,dec=2){return Number.isFinite(v)?v.toFixed(dec):'—';}
+function metric(label,value){return '<div class="metric"><span>'+label+'</span><b>'+value+'</b></div>';}
+function fileSize(n){return n>1e9?num(n/1e9)+' GB':n>1e6?num(n/1e6)+' MB':(n/1000|0)+' kB';}
+function makeViewport(id,overlayId){
+  const host=$(id), scene=new THREE.Scene();scene.background=new THREE.Color('#0e131c');
+  const camera=new THREE.PerspectiveCamera(45,1,0.001,5000);camera.position.set(2.8,1.7,3.8);
+  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,preserveDrawingBuffer:true,powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.outputColorSpace=THREE.SRGBColorSpace;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1;
+  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  host.insertBefore(renderer.domElement,host.firstChild);
+  const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=0.085;
+  const ambient=new THREE.HemisphereLight(0xddeaff,0x4a4d59,2.2);scene.add(ambient);
+  const key=new THREE.DirectionalLight(0xffffff,3.1);key.position.set(3,7,5);key.castShadow=true;
+  key.shadow.mapSize.set(2048,2048);key.shadow.bias=-0.0002;key.shadow.camera.near=.1;key.shadow.camera.far=100;
+  key.shadow.camera.left=-6;key.shadow.camera.right=6;key.shadow.camera.top=6;key.shadow.camera.bottom=-6;scene.add(key);
+  const fill=new THREE.DirectionalLight(0x91bdfa,1.1);fill.position.set(-5,3,-3);scene.add(fill);
+  const rim=new THREE.PointLight(0xc9e4ff,20);rim.position.set(2,3,-5);scene.add(rim);
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(100,100),new THREE.MeshStandardMaterial({color:0x252e3a,metalness:0.0,roughness:0.8}));
+  ground.rotation.x=-Math.PI/2;ground.position.y=-1;ground.receiveShadow=true;scene.add(ground);
+  const grid=new THREE.GridHelper(60,60,0x53617a,0x303e50);grid.position.y=-.998;scene.add(grid);
+  const axes=new THREE.AxesHelper(0.6);axes.visible=false;axes.position.set(-1.5,-.99,0);scene.add(axes);
+  const pmrem=new THREE.PMREMGenerator(renderer);
+  try {scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;} catch(e){console.warn('RoomEnvironment unavailable',e);}
+  const v={host,overlay:$(overlayId),scene,camera,renderer,controls,ambient,key,fill,rim,ground,grid,axes,
+           model:null,glTF:null,mixer:null,action:null,clip:null,time:0,playing:false,box:null,
+           skeleton:null,markerMeshes:[],jointLabels:[],baseMaterials:new Map(),selectedMesh:null,stats:{}};
+  const resize=()=>{const w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();};
+  new ResizeObserver(resize).observe(host);resize();
+  const transform=new TransformControls(camera,renderer.domElement);transform.setMode('rotate');transform.setSize(0.7);
+  scene.add(transform.getHelper());transform.getHelper().visible=false;
+  transform.addEventListener('dragging-changed',ev=>{controls.enabled=!ev.value;});
+  transform.addEventListener('objectChange',()=>{if(v===state.first)syncBoneFields();});
+  v.transform=transform;
+  renderer.domElement.addEventListener('click',ev=>{
+    if(v!==state.first || !$('joints').checked || !v.markerMeshes.length)return;
+    const rect=renderer.domElement.getBoundingClientRect();
+    const mouse=new THREE.Vector2(((ev.clientX-rect.left)/rect.width)*2-1,-((ev.clientY-rect.top)/rect.height)*2+1);
+    const ray=new THREE.Raycaster();ray.setFromCamera(mouse,camera);
+    const hit=ray.intersectObjects(v.markerMeshes,false)[0];
+    if(hit && hit.object.userData.boneName){$('boneSelect').value=hit.object.userData.boneName;selectBone();}
+  });
+  return v;
+}
+state.first=makeViewport('view1','overlay1');state.second=makeViewport('view2','overlay2');
+try {const ktx=new KTX2Loader();ktx.setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/libs/basis/');ktx.detectSupport(state.first.renderer);loader.setKTX2Loader(ktx);}catch(e){console.warn('KTX2 not configured',e);}
+function clearAsset(v){
+  v.transform.detach();v.transform.getHelper().visible=false;
+  v.markerMeshes.forEach(x=>{v.scene.remove(x);x.geometry.dispose();x.material.dispose();});v.markerMeshes=[];
+  v.overlay.replaceChildren();v.jointLabels=[];
+  if(v.skeleton){v.scene.remove(v.skeleton);v.skeleton.geometry.dispose();v.skeleton.material.dispose();v.skeleton=null;}
+  if(v.box){v.scene.remove(v.box);v.box.geometry.dispose();v.box.material.dispose();v.box=null;}
+  if(v.model){v.scene.remove(v.model);v.model=null;}v.glTF=null;v.mixer=null;v.action=null;v.clip=null;
+  v.baseMaterials.clear();v.stats={};v.time=0;v.playing=false;
+}
+function focus(v,preset='iso'){
+  if(!v.model)return;
+  const bbox=new THREE.Box3().setFromObject(v.model);if(bbox.isEmpty())return;
+  const center=bbox.getCenter(new THREE.Vector3());const size=bbox.getSize(new THREE.Vector3());
+  const h=Math.max(size.length(),.5),dist=h*1.45+0.65;
+  const direction= preset==='front'?new THREE.Vector3(0,0,1):preset==='side'?new THREE.Vector3(1,0,0):preset==='top'?new THREE.Vector3(0,1,0):new THREE.Vector3(1,0.5,1);
+  v.camera.up.set(0,1,0);v.camera.position.copy(center).add(direction.normalize().multiplyScalar(dist));
+  v.camera.near=Math.max(0.001,h/500);v.camera.far=Math.max(500,h*100);v.camera.updateProjectionMatrix();
+  v.controls.target.copy(center);v.controls.update();
+  v.ground.position.y=bbox.min.y-.013;v.grid.position.y=bbox.min.y-.011;
+  v.axes.position.set(bbox.min.x-size.x*.15,bbox.min.y,bbox.min.z);
+}
+function prepareMaterial(v){
+  v.baseMaterials.clear();v.model.traverse(node=>{
+    if(node.isMesh){v.baseMaterials.set(node,node.material);
+      node.castShadow=true;node.receiveShadow=true;node.frustumCulled=false;}
+  });
+}
+function restoreMaterials(v){for(const [mesh,mat] of v.baseMaterials)mesh.material=mat;}
+function weightHeatmap(mesh,boneName){
+  if(!mesh.isSkinnedMesh || !mesh.skeleton)return null;
+  const index=mesh.skeleton.bones.findIndex(b=>b.name===boneName);if(index<0)return null;
+  const skinIndices=mesh.geometry.getAttribute('skinIndex'),weights=mesh.geometry.getAttribute('skinWeight');
+  if(!skinIndices || !weights)return null;
+  const len=mesh.geometry.getAttribute('position').count;
+  const colors=new Float32Array(len*3);
+  const cold=new THREE.Color(0x143d9b),hot=new THREE.Color(0xf73442),warm=new THREE.Color(0xffb850);
+  for(let i=0;i<len;i++){
+    let w=0;for(let c=0;c<4;c++)if(skinIndices.getComponent(i,c)===index)w+=weights.getComponent(i,c);
+    const col=w<.5?cold.clone().lerp(warm,w*2):warm.clone().lerp(hot,(w-.5)*2);
+    colors[i*3]=col.r;colors[i*3+1]=col.g;colors[i*3+2]=col.b;
+  }
+  mesh.geometry.setAttribute('i3d_weight_color',new THREE.Float32BufferAttribute(colors,3));
+  const orig=mesh.geometry.getAttribute('color');
+  mesh.geometry.setAttribute('color',mesh.geometry.getAttribute('i3d_weight_color'));
+  return {orig};
+}
+function setMode(){
+  const mode=$('mode').value;
+  for(const v of [state.first,...(state.compare?[state.second]:[])]){
+    if(!v.model)continue;
+    restoreMaterials(v);
+    for(const [mesh,original] of v.baseMaterials){
+      if(mesh.userData.i3dColorOrig!==undefined){
+        const base=mesh.userData.i3dColorOrig;
+        if(base===null)mesh.geometry.deleteAttribute('color');else mesh.geometry.setAttribute('color',base);
+        delete mesh.userData.i3dColorOrig;
+      }
+      if(mode==='pbr')continue;
+      if(mode==='normals')mesh.material=new THREE.MeshNormalMaterial({side:THREE.DoubleSide});
+      if(mode==='wireframe'){
+        const m=(Array.isArray(original)?original[0]:original).clone();m.wireframe=true;m.side=THREE.DoubleSide;mesh.material=m;
+      }
+      if(mode==='solid')mesh.material=new THREE.MeshStandardMaterial({color:0xc8c9ce,roughness:.78,metalness:.06});
+      if(mode==='depth')mesh.material=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking});
+      if(mode==='albedo'){
+        const m=Array.isArray(original)?original[0]:original;
+        mesh.material=new THREE.MeshBasicMaterial({map:m.map||null,color:m.color||0xffffff,side:THREE.DoubleSide});
+      }
+      if(mode==='weights'){
+        const bone=state.selectedBone||'Hips';
+        mesh.userData.i3dColorOrig=mesh.geometry.getAttribute('color')||null;
+        const result=weightHeatmap(mesh,bone);
+        mesh.material=result?new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide}):
+           new THREE.MeshStandardMaterial({color:0x425063});
+      }
+    }
+  }
+}
+function updateLighting(){
+  const preset=$('lighting').value;const options={studio:[2.2,3.1,1.1,20,0xffffff],soft:[3.4,1.1,0.6,6,0xffffff],sunset:[1.25,4.5,0.3,3,0xffae64],flat:[3,0.3,0,0,0xffffff]};
+  const [amb,key,fill,rim,color]=options[preset];
+  for(const v of [state.first,state.second]){v.ambient.intensity=amb;v.key.intensity=key;v.fill.intensity=fill;v.rim.intensity=rim;v.key.color.setHex(color);
+    v.renderer.toneMappingExposure=Number($('exposure').value);v.scene.background=new THREE.Color($('backgroundColor').value);
+    v.ground.visible=$('ground').checked;v.grid.visible=$('grid').checked;v.axes.visible=$('axes').checked;}
+  $('exposureText').textContent=num(Number($('exposure').value),2);
+}
+function updateHelpers(v){
+  if(!v.model)return;
+  if(v.skeleton)v.skeleton.visible=$('skeleton').checked;
+  if(v.box)v.box.visible=$('bbox').checked;
+  v.markerMeshes.forEach(m=>m.visible=$('joints').checked);
+  v.jointLabels.forEach(l=>{l.style.display=$('labels').checked?'block':'none';});
+  v.transform.getHelper().visible=(v===state.first&&state.activeStage==='soma'&&$('gizmo').checked&&!!state.selectedBone);
+  if(v.skeleton){v.skeleton.material.depthTest=!$('xray').checked;}
+}
+function createMarkers(v){
+  if(!v.model)return;
+  const bones=[];v.model.traverse(node=>{if(node.isBone)bones.push(node);});
+  if(!bones.length)return;
+  v.skeleton=new THREE.SkeletonHelper(v.model);v.skeleton.material.color.set(0x53deff);v.skeleton.material.depthTest=true;v.scene.add(v.skeleton);
+  const bounds=new THREE.Box3().setFromObject(v.model);const radius=Math.max(0.008,Math.min(.05,bounds.getSize(new THREE.Vector3()).length()/120));
+  for(const bone of bones){
+    const ball=new THREE.Mesh(new THREE.SphereGeometry(radius,8,6),new THREE.MeshBasicMaterial({color:0x6cc8ff,depthTest:false}));
+    ball.userData.boneName=bone.name;ball.renderOrder=98;v.scene.add(ball);v.markerMeshes.push(ball);
+    const lbl=document.createElement('div');lbl.className='joint-label';lbl.textContent=bone.name;lbl.style.display='none';v.overlay.appendChild(lbl);
+    v.jointLabels.push(lbl);
+  }
+}
+function updateMarkers(v){
+  if(!v.model || !v.markerMeshes.length)return;
+  const bones=[];v.model.traverse(node=>{if(node.isBone)bones.push(node);});
+  for(let i=0;i<v.markerMeshes.length;i++){
+    const bone=bones[i],mesh=v.markerMeshes[i];
+    bone.getWorldPosition(mesh.position);
+    mesh.material.color.set(bone===state.selectedBone?0xffc759:0x6cc8ff);
+    if($('labels').checked){
+      const p=mesh.position.clone().project(v.camera);
+      const visible=p.z>-1&&p.z<1;
+      const label=v.jointLabels[i];label.style.display=visible?'block':'none';
+      label.style.left=((p.x+1)*.5*v.host.clientWidth)+'px';
+      label.style.top=((-p.y+1)*.5*v.host.clientHeight)+'px';
+    }
+  }
+}
+function readStats(v){
+  const stats={meshes:0,triangles:0,vertices:0,skinned:0,bones:0,materials:new Set(),textures:new Set(),clips:v.glTF?.animations.length||0,
+               duration:0,scale:'',dim:'',named:[]};
+  v.model.traverse(obj=>{
+    if(obj.isMesh){stats.meshes++;stats.vertices+=obj.geometry.getAttribute('position')?.count||0;
+      stats.triangles+=obj.geometry.index?Math.floor(obj.geometry.index.count/3):Math.floor((obj.geometry.getAttribute('position')?.count||0)/3);
+      if(obj.isSkinnedMesh)stats.skinned++;
+      const materials=Array.isArray(obj.material)?obj.material:[obj.material];
+      materials.forEach(m=>{if(!m)return;stats.materials.add(m.uuid);
+        for(const key of ['map','normalMap','metalnessMap','roughnessMap','aoMap','emissiveMap','alphaMap','clearcoatMap'])if(m[key])stats.textures.add(m[key].uuid);
+      });
+      stats.named.push(obj);
+    }
+    if(obj.isBone)stats.bones++;
+  });
+  const bbox=new THREE.Box3().setFromObject(v.model),dim=bbox.getSize(new THREE.Vector3());
+  stats.dim=[dim.x,dim.y,dim.z].map(x=>num(x,3)).join(' × ');
+  stats.duration=v.glTF?.animations.reduce((n,x)=>Math.max(n,x.duration),0)||0;
+  v.stats=stats;
+  return stats;
+}
+function inspection(){
+  const v=state.first;if(!v.model){$('stats').innerHTML='<span class="absent">No 3D stage available yet</span>';return;}
+  const s=readStats(v);
+  $('stats').innerHTML=metric('Meshes',s.meshes)+metric('Triangles',s.triangles.toLocaleString())+
+    metric('Vertices',s.vertices.toLocaleString())+metric('Skinned meshes',s.skinned)+
+    metric('Skeleton joints',s.bones)+metric('Unique materials',s.materials.size)+
+    metric('Texture maps',s.textures.size)+metric('Dimensions XYZ (m)',s.dim)+
+    metric('Animation duration',num(s.duration)+' s');
+  $('meshSelect').replaceChildren();for(const m of s.named){const option=new Option(m.name||'Unnamed mesh',m.uuid);$('meshSelect').appendChild(option);}
+  $('technical').textContent=JSON.stringify({stage:state.activeStage,meshes:s.named.map(x=>({name:x.name,
+    skinned:x.isSkinnedMesh,geometry_attributes:Object.keys(x.geometry.attributes),morphTargets:Object.keys(x.morphTargetDictionary||{}),
+    material:(Array.isArray(x.material)?x.material:[x.material]).map(m=>m?{name:m.name,type:m.type,metalness:m.metalness,roughness:m.roughness,
+    opacity:m.opacity,alphaTest:m.alphaTest,map:!!m.map,normalMap:!!m.normalMap,roughnessMap:!!m.roughnessMap,metalnessMap:!!m.metalnessMap}:null)})),
+    clips:v.glTF.animations.map(x=>({name:x.name,duration:x.duration,tracks:x.tracks.length}))},null,2);
+  materialInfo();
+}
+function materialInfo(){
+  const v=state.first;if(!v.model)return;
+  const mesh=v.stats.named?.find(x=>x.uuid===$('meshSelect').value)||v.stats.named?.[0];
+  if(!mesh){$('materialStats').textContent='No meshes';return;}
+  const material=v.baseMaterials.get(mesh)||mesh.material;
+  const list=Array.isArray(material)?material:[material];
+  $('materialStats').innerHTML=list.map(m=>m?('Material: '+(m.name||m.type)+' · roughness '+num(m.roughness||0)+' · metallic '+num(m.metalness||0)+' · color '+(m.color?.getHexString()||'none')+' · texture '+(m.map?'yes':'no')):'Unknown').join('<hr>');
+}
+function configureClips(){
+  const v=state.first;
+  $('clip').replaceChildren();
+  if(!v.glTF?.animations.length){$('clip').appendChild(new Option('No animation in this GLB',''));$('animCount').textContent='0 clips';$('play').disabled=true;return;}
+  v.mixer=new THREE.AnimationMixer(v.model);
+  v.glTF.animations.forEach((clip,i)=>$('clip').appendChild(new Option((clip.name||'Clip '+(i+1))+' · '+num(clip.duration)+'s',String(i))));
+  $('animCount').textContent=v.glTF.animations.length+' clips';$('play').disabled=false;
+  chooseClip(0);
+}
+function chooseClip(index){
+  const v=state.first;if(!v.mixer||!v.glTF?.animations[index])return;
+  v.mixer.stopAllAction();v.clip=v.glTF.animations[index];v.action=v.mixer.clipAction(v.clip);
+  v.action.setLoop($('loop').checked?THREE.LoopRepeat:THREE.LoopOnce,Infinity);v.action.clampWhenFinished=true;
+  v.action.play();v.mixer.setTime(0);v.time=0;v.playing=false;
+  $('timeline').max=Math.max(.001,v.clip.duration);$('timeline').value=0;$('play').textContent='Play';
+}
+function setPlay(play){
+  const v=state.first;v.playing=!!play&&!!v.action;$('play').textContent=v.playing?'Pause':'Play';
+}
+function seek(t){
+  const v=state.first;if(!v.mixer||!v.clip)return;
+  const duration=v.clip.duration;v.time=THREE.MathUtils.clamp(t,0,duration);v.mixer.setTime(v.time);v.model.updateMatrixWorld(true);
+  $('timeline').value=v.time;$('timeText').textContent=num(v.time)+' / '+num(duration)+' s';
+}
+function updateBoneSelector(){
+  const v=state.first,stateOK=state.activeStage==='soma'&&state.manifest?.can_pose;
+  state.poseAvailable=!!(stateOK&&v.model);
+  const opts=$('boneSelect');opts.replaceChildren();
+  if(!state.poseAvailable){opts.appendChild(new Option('Select SOMA rig stage',''));state.selectedBone=null;
+    $('poseHint').textContent='Pose editing is available on the SOMA stage after its GLB and the canonical skeleton reference are generated.';return;}
+  const map=new Map();v.model.traverse(b=>{if(b.isBone)map.set(b.name,b);});
+  const names=state.manifest.bone_names;
+  if(names.some(n=>!map.has(n))){$('poseHint').textContent='ERROR: SOMA names in glTF do not match canonical reference. Do not pose this model.';state.poseAvailable=false;return;}
+  for(const name of names)opts.appendChild(new Option(name,name));
+  state.bones=map;state.boneRest.clear();
+  v.model.updateMatrixWorld(true);
+  for(const name of names){
+    const b=map.get(name);
+    state.boneRest.set(name,{world:b.matrixWorld.toArray(),
+      position:b.position.clone(),quaternion:b.quaternion.clone(),scale:b.scale.clone()});
+  }
+  opts.value='Hips';selectBone();$('poseHint').textContent='SOMA rig is ready: pose joints with local rotations or the 3D gizmo. Save START and TARGET, then execute the viewer-animation cell below.';
+}
+function selectBone(){
+  const name=$('boneSelect').value;state.selectedBone=state.bones?.get(name)||null;
+  const v=state.first;v.transform.detach();
+  if(state.selectedBone && state.poseAvailable){v.transform.attach(state.selectedBone);
+    v.transform.getHelper().visible=$('gizmo').checked;syncBoneFields();}else v.transform.getHelper().visible=false;
+  if($('mode').value==='weights')setMode();
+}
+function syncBoneFields(){
+  const bone=state.selectedBone;if(!bone)return;
+  const rest=state.boneRest.get(bone.name);if(!rest)return;
+  const dq=rest.quaternion.clone().invert().multiply(bone.quaternion);
+  const euler=new THREE.Euler().setFromQuaternion(dq,'XYZ');
+  ['X','Y','Z'].forEach((c,i)=>$('rot'+c).value=Math.round(THREE.MathUtils.radToDeg([euler.x,euler.y,euler.z][i])));
+  const root=state.bones.get('Hips'),original=state.boneRest.get('Hips');
+  if(root&&original){const delta=root.position.clone().sub(original.position);$('rootX').value=num(delta.x,3);$('rootY').value=num(delta.y,3);$('rootZ').value=num(delta.z,3);}
+}
+function changeRotation(){
+  const b=state.selectedBone;if(!b||!state.poseAvailable)return;
+  const rest=state.boneRest.get(b.name);const xyz=['X','Y','Z'].map(x=>Number($('rot'+x).value));
+  if(xyz.some(x=>!Number.isFinite(x)||Math.abs(x)>180))return status('Joint Euler input must be in [-180,180] degrees',true);
+  const delta=new THREE.Quaternion().setFromEuler(new THREE.Euler(...xyz.map(THREE.MathUtils.degToRad),'XYZ'));
+  b.quaternion.copy(rest.quaternion).multiply(delta);
+  b.updateMatrixWorld(true);status('Edited '+b.name+' (current character only)');
+}
+function changeRoot(){
+  if(!state.poseAvailable)return;
+  const vals=['X','Y','Z'].map(x=>Number($('root'+x).value));
+  if(vals.some(x=>!Number.isFinite(x)||Math.abs(x)>5))return status('Root displacement limited to ±5 m',true);
+  const root=state.bones.get('Hips');root.position.copy(state.boneRest.get('Hips').position).add(new THREE.Vector3(...vals));
+  state.first.model.updateMatrixWorld(true);status('Root position updated (Y is up in the viewer)');
+}
+function resetAll(){
+  if(!state.poseAvailable)return;
+  for(const [name,rest] of state.boneRest){const b=state.bones.get(name);b.position.copy(rest.position);b.quaternion.copy(rest.quaternion);b.scale.copy(rest.scale);}
+  state.first.model.updateMatrixWorld(true);syncBoneFields();status('Restored canonical SOMA character pose');
+}
+function buildPose(slot){
+  const v=state.first;if(!state.poseAvailable)throw Error('Load the SOMA stage to author poses');
+  if(v.playing||v.glTF.animations.length){
+    // SOMA stage should not have active animations while authoring; require rest mode.
+    if(v.playing)throw Error('Pause animation before saving a pose');
+  }
+  v.model.updateMatrixWorld(true);
+  const bones={};
+  for(const name of state.manifest.bone_names){
+    const bone=state.bones.get(name),rest=state.boneRest.get(name);
+    bones[name]={world:bone.matrixWorld.toArray(),rest_world:rest.world,
+      local:{position:bone.position.toArray(),quaternion:bone.quaternion.toArray(),scale:bone.scale.toArray()}};
+  }
+  return {slot,bones};
+}
+async function savePose(slot){
+  try{
+    const payload=buildPose(slot);
+    const res=await fetch('/api/pose',{method:'POST',headers:{'Content-Type':'application/json','X-I3D-Action':'pose'},body:JSON.stringify(payload)});
+    const data=await res.json();if(!res.ok)throw Error(data.error||'Pose save failed');
+    await refreshManifest(false);
+    status('Saved '+slot.toUpperCase()+' SOMA pose in Colab');
+  }catch(e){status(String(e),true);}
+}
+async function loadPose(slot){
+  try{
+    if(!state.poseAvailable)throw Error('Load the SOMA stage first');
+    const res=await fetch('/api/poses',{cache:'no-store'});const json=await res.json();
+    const pose=json.poses?.[slot];if(!pose)throw Error('No saved '+slot+' pose found');
+    const stage=state.manifest.stages.find(x=>x.id==='soma');
+    if(stage?.asset?.size!==pose.source_bytes||Math.abs(stage.asset.mtime-pose.source_mtime)>.1)
+      throw Error('The SOMA GLB changed since this pose was recorded; resave both poses');
+    for(const [name,record] of Object.entries(pose.bones)){
+      const bone=state.bones.get(name),local=record.local;if(!bone)throw Error('Unknown joint '+name);
+      bone.position.fromArray(local.position);bone.quaternion.fromArray(local.quaternion);bone.scale.fromArray(local.scale);
+    }
+    state.first.model.updateMatrixWorld(true);syncBoneFields();status('Loaded '+slot.toUpperCase()+' pose');
+  }catch(e){status(String(e),true);}
+}
+function refreshPoseSaved(){
+  const items=state.manifest?.saved_poses||[];
+  $('poseSaved').textContent='Saved in Colab: '+(items.length?items.map(x=>x.toUpperCase()).join(' + '):'none')+(items.length===2?' • Ready for MotionBricks':'');
+}
+async function loadStage(v,id){
+  const stage=state.manifest?.stages.find(x=>x.id===id);
+  if(!stage?.available){clearAsset(v);if(v===state.first){updateBoneSelector();inspection();configureClips();}return;}
+  $('dropbox').style.display='grid';status('Loading '+stage.name+' ('+fileSize(stage.asset.size)+')…');
+  clearAsset(v);
+  try{
+    const asset=stage.asset.url+'?v='+stage.asset.mtime;
+    const gltf=await loader.loadAsync(asset);
+    v.glTF=gltf;v.model=gltf.scene;v.scene.add(v.model);v.model.updateMatrixWorld(true);
+    prepareMaterial(v);createMarkers(v);
+    const bounds=new THREE.Box3().setFromObject(v.model);
+    if(!bounds.isEmpty()){v.box=new THREE.Box3Helper(bounds,new THREE.Color(0xeeb947));v.scene.add(v.box);}
+    focus(v);
+    v.host.querySelector('.view-title').textContent=stage.name;
+    updateHelpers(v);updateLighting();
+    if(v===state.first){
+      state.activeStage=id;state.selectedBone=null;inspection();configureClips();updateBoneSelector();setMode();
+    }else{state.activeCompare=id;setMode();}
+    status('Loaded '+stage.name+' · '+fileSize(stage.asset.size));
+  }catch(e){status('3D loading failed for '+stage.name+': '+e.message,true);console.error(e);}
+  finally{$('dropbox').style.display='none';}
+}
+function optionsFor(select,manifest){
+  const current=select.value;select.replaceChildren();
+  for(const stage of manifest.stages){const o=new Option((stage.available?'● ':'○ ')+stage.name,stage.id);o.disabled=!stage.available;select.appendChild(o);}
+  if(manifest.stages.some(s=>s.id===current&&s.available))select.value=current;
+  else select.value=manifest.stages.filter(s=>s.available).at(-1)?.id||'';
+}
+async function refreshManifest(initial=false){
+  try{
+    const r=await fetch('/api/manifest',{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);
+    const data=await r.json();state.manifest=data;
+    const oldStage=$('stage').value;
+    optionsFor($('stage'),data);optionsFor($('compareStage'),data);
+    if(!initial && oldStage&&data.stages.find(s=>s.id===oldStage)?.available)$('stage').value=oldStage;
+    const completed=data.stages.filter(s=>s.available).length;$('ready').textContent=completed+' / '+data.stages.length;
+    $('asset-links').innerHTML='';for(const file of data.assets){
+      const el=document.createElement('div');el.className='asset';const link=document.createElement('a');link.href=file.url;link.textContent=file.name;
+      link.download=file.name;el.appendChild(link);const span=document.createElement('span');span.textContent=fileSize(file.size);span.className='small';el.appendChild(span);$('asset-links').appendChild(el);
+    }
+    $('sourceImage').src=data.original_image?.url||'';
+    $('sourceImage').classList.toggle('shown',$('sourceToggle').checked&&!!data.original_image);
+    refreshPoseSaved();
+    if(initial&&completed){
+      const soma=data.stages.find(s=>s.id==='soma');if(soma?.available)$('stage').value='soma';
+      await loadStage(state.first,$('stage').value);
+    }
+    if(!completed)status('No GLB outputs yet. Run geometry generation in the notebook; this viewer will find new files.');
+  }catch(e){status('Manifest unavailable: '+e.message,true);console.error(e);}
+}
+function toggleCompare(){
+  state.compare=$('compare').checked;$('view2').classList.toggle('hidden',!state.compare);
+  if(state.compare){if(!$('compareStage').value&&state.manifest?.stages.some(s=>s.id==='geometry'&&s.available))$('compareStage').value='geometry';
+    loadStage(state.second,$('compareStage').value);}else clearAsset(state.second);
+}
+function screenshot(){
+  const v=state.first;if(!v.model)return status('Load a model before taking screenshot',true);
+  v.renderer.render(v.scene,v.camera);
+  const name='I3D_'+(state.activeStage||'model')+'_'+Date.now()+'.png';
+  const a=document.createElement('a');a.download=name;a.href=v.renderer.domElement.toDataURL('image/png');a.click();status('Saved PNG: '+name);
+}
+function tick(){
+  requestAnimationFrame(tick);
+  const delta=Math.min(clock.getDelta(),.05);
+  for(const v of [state.first,state.second]){
+    if(!v.host.offsetParent && v===state.second)continue;
+    v.controls.autoRotate=$('autorotate').checked;
+    v.controls.update();
+    if(v.mixer&&v.playing){v.time+=delta*state.speed;
+      if(v.clip&&v.time>=v.clip.duration){if($('loop').checked)v.time%=v.clip.duration;else{v.time=v.clip.duration;v.playing=false;$('play').textContent='Play';}}
+      v.mixer.setTime(v.time);
+      if(v===state.first){$('timeline').value=v.time;$('timeText').textContent=num(v.time)+' / '+num(v.clip?.duration||0)+' s';}
+    }
+    if(v.model){v.model.updateMatrixWorld(true);updateMarkers(v);}
+    v.renderer.render(v.scene,v.camera);
+  }
+  const stats=state.first.renderer.info.render;
+  $('footstats').textContent=(state.activeStage||'No model')+' · '+stats.calls+' draws · '+stats.triangles.toLocaleString()+' rendered tris';
+}
+const clock=new THREE.Clock();
+function bind(id,event,fn){$(id).addEventListener(event,fn);}
+bind('refresh','click',async()=>{await refreshManifest(false);const id=$('stage').value;if(id)await loadStage(state.first,id);if(state.compare)await loadStage(state.second,$('compareStage').value);});
+bind('stage','change',()=>loadStage(state.first,$('stage').value));bind('compareStage','change',()=>{if(state.compare)loadStage(state.second,$('compareStage').value);});
+bind('compare','change',toggleCompare);bind('swap','click',async()=>{const a=$('stage').value,b=$('compareStage').value;$('stage').value=b;$('compareStage').value=a;await loadStage(state.first,b);if(state.compare)await loadStage(state.second,a);});
+bind('sourceToggle','change',()=>{$('sourceImage').classList.toggle('shown',$('sourceToggle').checked&&!!state.manifest?.original_image);});
+bind('shot','click',screenshot);
+bind('record','click',()=>{
+  if(state.recorder && state.recorder.state==='recording'){
+    state.recorder.stop();$('record').textContent='Record video';$('record').classList.remove('active');
+    return;
+  }
+  if(!state.first.model)return status('Load a 3D model before recording video',true);
+  const canvas=state.first.renderer.domElement;
+  if(!canvas.captureStream||!window.MediaRecorder)return status('Canvas recording is not supported by this browser',true);
+  try{
+    state.recordChunks=[];
+    const format=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(x=>MediaRecorder.isTypeSupported(x));
+    const rec=new MediaRecorder(canvas.captureStream(30),format?{mimeType:format}:{});
+    rec.ondataavailable=event=>{if(event.data.size)state.recordChunks.push(event.data);};
+    rec.onstop=()=>{
+      const blob=new Blob(state.recordChunks,{type:rec.mimeType||'video/webm'});
+      const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;
+      a.download='I3D_'+state.activeStage+'_viewport.webm';a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),30000);
+      state.recorder=null;status('Saved rendered 3D viewport video as WebM');
+    };
+    rec.start();state.recorder=rec;$('record').textContent='Stop recording';$('record').classList.add('active');
+    status('Recording browser-rendered 3D viewport at 30 FPS…');
+  }catch(e){status('Video recording unavailable: '+e.message,true);}
+});
+bind('fullscreen','click',()=>{if(document.fullscreenElement)document.exitFullscreen();else $('fullscreenWrap').requestFullscreen();});
+for(const id of ['ground','grid','axes','lighting','backgroundColor','exposure'])bind(id,'input',updateLighting);
+bind('mode','change',setMode);
+for(const id of ['skeleton','joints','labels','bbox','gizmo','xray'])bind(id,'change',()=>{updateHelpers(state.first);updateHelpers(state.second);});
+bind('front','click',()=>focus(state.first,'front'));bind('side','click',()=>focus(state.first,'side'));
+bind('top','click',()=>focus(state.first,'top'));bind('fit','click',()=>focus(state.first));
+bind('clip','change',()=>chooseClip(Number($('clip').value)));
+bind('play','click',()=>setPlay(!state.first.playing));bind('restart','click',()=>{seek(0);setPlay(false);});
+bind('stepBack','click',()=>{setPlay(false);seek(state.first.time-1/30);});
+bind('stepForward','click',()=>{setPlay(false);seek(state.first.time+1/30);});
+bind('timeline','input',()=>{setPlay(false);seek(Number($('timeline').value));});
+bind('speed','change',()=>state.speed=Number($('speed').value));
+bind('loop','change',()=>{const v=state.first;if(v.action)v.action.setLoop($('loop').checked?THREE.LoopRepeat:THREE.LoopOnce,Infinity);});
+bind('boneSelect','change',selectBone);bind('applyRotation','click',changeRotation);bind('resetAll','click',resetAll);
+bind('resetBone','click',()=>{const b=state.selectedBone;if(!b)return;const rest=state.boneRest.get(b.name);b.position.copy(rest.position);b.quaternion.copy(rest.quaternion);b.scale.copy(rest.scale);syncBoneFields();});
+bind('applyRoot','click',changeRoot);bind('saveStart','click',()=>savePose('start'));bind('saveTarget','click',()=>savePose('target'));
+bind('loadStart','click',()=>loadPose('start'));bind('loadTarget','click',()=>loadPose('target'));
+bind('meshSelect','change',materialInfo);
+refreshManifest(true);setInterval(()=>refreshManifest(false),12000);tick();
+</script>
+</body></html>
