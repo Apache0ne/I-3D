@@ -31,7 +31,8 @@ def prepare(a):
     hi=V/'Hi3Dv1.0'
     if not (hi/'demo'/'image_to_mesh.py').exists():raise FileNotFoundError('Vendor original Hi3D source first')
     invoke([os.getenv('I3D_HI3D_PYTHON','python'),'demo/image_to_mesh.py',
-            '--image',image,'--output',refined,'--resolution',a.geometry_resolution,
+            '--image',image,'--output',refined,'--model','hi3d-official/Hi3Dv1.0',
+            '--resolution',a.geometry_resolution,
             '--num-inference-steps',a.steps,'--remove-background'],cwd=hi)
     # Paint depends on its own torch / CUDA / extension configuration.
     invoke([os.getenv('I3D_PAINT_PYTHON','python'),ROOT/'scripts'/'paint_hunyuan.py',
