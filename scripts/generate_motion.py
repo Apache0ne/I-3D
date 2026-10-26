@@ -27,7 +27,7 @@ def load_inputs(poses_path,reference_path,bridge_path):
         raise ValueError('Pose and reference joint names differ')
     conv=soma_to_character_matrix(float(bridge['template_scale']),
                                   bridge['template_translation'],bridge['forward'])
-    bind=np.asarray(ref['bind_world_soma'],float)
+    bind=np.asarray(ref['rest_world_soma'],float)
     if bind.shape!=(30,4,4):raise ValueError('Invalid SOMA bind transforms')
     rest=poses['armature_rest']
     A=np.asarray(poses['armature_world'],float)
