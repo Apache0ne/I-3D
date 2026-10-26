@@ -24,7 +24,7 @@ REPOS={
 }
 # RMBG-2.0 implementation is remote-model-code via Hugging Face, not a standalone
 # fully released source repository with a separate complete local runtime.
-EXCLUDED={'.git','.venv','__pycache__','.trt-cache','outputs','results','checkpoints','experiments'}
+EXCLUDED={'.git','.gitattributes','.lfsconfig','.venv','__pycache__','.trt-cache','outputs','results','checkpoints','experiments'}
 WEIGHT_SUFFIX={'.safetensors','.ckpt','.pth','.pt','.onnx','.bin','.pkl','.npz'}
 
 def run(*cmd,cwd=None):
