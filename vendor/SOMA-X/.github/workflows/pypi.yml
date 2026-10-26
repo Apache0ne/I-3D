@@ -1,0 +1,428 @@
+name: Build and publish py-soma-x
+
+on:
+  pull_request:
+    branches:
+      - main
+      - 'release-[0-9]*.[0-9]*'
+  push:
+    branches:
+      - main
+      - 'release-[0-9]*.[0-9]*'
+    tags:
+      - 'v[0-9]*.[0-9]*.[0-9]*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing public vX.Y.Z tag to resume or recover."
+        required: false
+        type: string
+      hf_revision:
+        description: "Exact existing Hub commit to tag during interrupted-release recovery."
+        required: false
+        type: string
+      hf_git_smoke:
+        description: "Test OIDC Git tag create/verify/delete without publishing a release."
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  build:
+    name: Build distributions
+    if: github.event_name != 'workflow_dispatch' || !inputs.hf_git_smoke
+    runs-on: ubuntu-latest
+    outputs:
+      package-version: ${{ steps.version.outputs.package_version }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Check release version metadata
+        id: version
+        run: |
+          expected=""
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            expected="${GITHUB_REF_NAME}"
+          elif [[ -n "${{ inputs.tag }}" ]]; then
+            expected="${{ inputs.tag }}"
+          fi
+          if [[ -n "$expected" ]]; then
+            package_version="$(python tools/ci/check_release_version.py --expected "$expected")"
+          else
+            package_version="$(python tools/ci/check_release_version.py)"
+          fi
+          echo "package_version=$package_version" >> "$GITHUB_OUTPUT"
+          echo "Package version: $package_version"
+
+      - name: Build and verify Hugging Face asset stage
+        run: |
+          public_commit="$(git rev-parse HEAD)"
+          python tools/ci/package_hf_assets.py \
+            --output "$RUNNER_TEMP/hf-stage" \
+            --release-tag "v${{ steps.version.outputs.package_version }}" \
+            --public-commit "$public_commit"
+          python tools/ci/verify_hf_assets.py "$RUNNER_TEMP/hf-stage"
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+
+      - name: Build source and wheel distributions
+        run: |
+          python -m build --sdist --wheel
+
+      - name: Check distribution metadata
+        run: |
+          python -m twine check --strict dist/*
+
+      - name: Smoke-test wheel metadata
+        run: |
+          python -m venv .pkg-smoke
+          .pkg-smoke/bin/python -m pip install --upgrade pip
+          .pkg-smoke/bin/python -m pip install --no-deps dist/*.whl
+          .pkg-smoke/bin/python - <<'PY'
+          import importlib.metadata as metadata
+
+          version = metadata.version("py-soma-x")
+          print(f"Installed py-soma-x wheel metadata version: {version}")
+          PY
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: py-soma-x-${{ steps.version.outputs.package_version }}-dists
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  smoke-huggingface-git:
+    name: Smoke-test Hugging Face OIDC Git authentication
+    if: github.event_name == 'workflow_dispatch' && inputs.hf_git_smoke
+    runs-on: ubuntu-latest
+    environment:
+      name: huggingface
+      url: https://huggingface.co/nvidia/SOMA-X
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout automation
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Hugging Face client
+        run: python -m pip install "huggingface_hub==1.29.0"
+
+      - name: Exchange GitHub OIDC identity for a scoped Hub token
+        env:
+          HF_OIDC_RESOURCE: nvidia/SOMA-X
+        run: |
+          token="$(hf auth token)"
+          echo "::add-mask::$token"
+          echo "HF_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Create, verify, and remove ephemeral Hub tag
+        run: |
+          python tools/ci/hf_git_refs.py \
+            --repo-id nvidia/SOMA-X \
+            smoke \
+            --revision main \
+            --tag "ci-oidc-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+  publish-huggingface:
+    name: Publish assets to Hugging Face
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment:
+      name: huggingface
+      url: https://huggingface.co/nvidia/SOMA-X
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Hugging Face client
+        run: python -m pip install "huggingface_hub==1.29.0"
+
+      - name: Build and verify Hugging Face asset stage
+        run: |
+          python tools/ci/package_hf_assets.py \
+            --output "$RUNNER_TEMP/hf-stage" \
+            --release-tag "$GITHUB_REF_NAME" \
+            --public-commit "$GITHUB_SHA"
+          python tools/ci/verify_hf_assets.py "$RUNNER_TEMP/hf-stage"
+
+      - name: Exchange GitHub OIDC identity for a scoped Hub token
+        env:
+          HF_OIDC_RESOURCE: nvidia/SOMA-X
+        run: |
+          token="$(hf auth token)"
+          echo "::add-mask::$token"
+          echo "HF_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Preflight Hub Git authentication
+        run: |
+          python tools/ci/hf_git_refs.py \
+            --repo-id nvidia/SOMA-X \
+            smoke \
+            --revision main \
+            --tag "ci-oidc-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+      - name: Publish and tag Hugging Face assets
+        run: |
+          python tools/ci/publish_hf_assets.py \
+            --stage "$RUNNER_TEMP/hf-stage" \
+            --repo-id nvidia/SOMA-X \
+            --release-tag "$GITHUB_REF_NAME"
+
+  recover-huggingface-tag:
+    name: Recover interrupted Hugging Face release tag
+    needs: build
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      inputs.tag != '' &&
+      inputs.hf_revision != ''
+    runs-on: ubuntu-latest
+    environment:
+      name: huggingface
+      url: https://huggingface.co/nvidia/SOMA-X
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout recovery automation
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Hugging Face client
+        run: python -m pip install "huggingface_hub==1.29.0"
+
+      - name: Exchange GitHub OIDC identity for a scoped Hub token
+        env:
+          HF_OIDC_RESOURCE: nvidia/SOMA-X
+        run: |
+          token="$(hf auth token)"
+          echo "::add-mask::$token"
+          echo "HF_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Preflight Hub Git authentication
+        run: |
+          python tools/ci/hf_git_refs.py \
+            --repo-id nvidia/SOMA-X \
+            smoke \
+            --revision main \
+            --tag "ci-oidc-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+      - name: Create and verify the missing release tag
+        run: |
+          python tools/ci/hf_git_refs.py \
+            --repo-id nvidia/SOMA-X \
+            create \
+            --revision "${{ inputs.hf_revision }}" \
+            --tag "${{ inputs.tag }}"
+
+  verify-huggingface:
+    name: Verify published Hugging Face assets
+    needs:
+      - build
+      - publish-huggingface
+      - recover-huggingface-tag
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      (
+        (
+          github.event_name == 'push' &&
+          startsWith(github.ref, 'refs/tags/v') &&
+          needs.publish-huggingface.result == 'success'
+        ) ||
+        (
+          github.event_name == 'workflow_dispatch' &&
+          inputs.tag != '' &&
+          needs.publish-huggingface.result == 'skipped' &&
+          (
+            needs.recover-huggingface-tag.result == 'success' ||
+            (
+              inputs.hf_revision == '' &&
+              needs.recover-huggingface-tag.result == 'skipped'
+            )
+          )
+        )
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout verification tools
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Hugging Face client
+        run: python -m pip install "huggingface_hub==1.29.0"
+
+      - name: Download and verify immutable release
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          hf download nvidia/SOMA-X \
+            --revision "$RELEASE_TAG" \
+            --local-dir "$RUNNER_TEMP/hf-download"
+          python tools/ci/verify_hf_assets.py \
+            --allow-download-cache "$RUNNER_TEMP/hf-download"
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs:
+      - build
+      - verify-huggingface
+    if: |
+      always() &&
+      needs.verify-huggingface.result == 'success' &&
+      (
+        (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+        (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+      )
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/py-soma-x/
+    permissions:
+      id-token: write
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          pattern: py-soma-x-*-dists
+          path: dist
+          merge-multiple: true
+
+      - name: Publish package distributions to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: publish-testpypi
+    if: |
+      always() &&
+      needs.publish-testpypi.result == 'success' &&
+      (
+        (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+        (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+      )
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/py-soma-x/
+    permissions:
+      id-token: write
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          pattern: py-soma-x-*-dists
+          path: dist
+          merge-multiple: true
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-github-release:
+    name: Publish GitHub Release
+    needs:
+      - build
+      - publish-pypi
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      needs.publish-pypi.result == 'success' &&
+      (
+        (
+          github.event_name == 'push' &&
+          startsWith(github.ref, 'refs/tags/v')
+        ) ||
+        (
+          github.event_name == 'workflow_dispatch' &&
+          inputs.tag != ''
+        )
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          pattern: py-soma-x-*-dists
+          path: dist
+          merge-multiple: true
+
+      - name: Extract release notes
+        run: |
+          python tools/ci/extract_release_notes.py \
+            --tag "$RELEASE_TAG" \
+            --output release-notes.md
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="${RELEASE_TAG}"
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$title" \
+              --notes-file release-notes.md
+            gh release upload "$RELEASE_TAG" dist/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$title" \
+              --notes-file release-notes.md \
+              --verify-tag
+          fi

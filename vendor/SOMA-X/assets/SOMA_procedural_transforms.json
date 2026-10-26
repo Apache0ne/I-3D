@@ -1,0 +1,833 @@
+{
+  "schema_version": "1.1.0",
+  "definition_name": "SOMA v0027 procedural twist controls",
+  "modes": [
+    "local_x_euler",
+    "local_x_swing_twist",
+    "aligned_x_swing_twist"
+  ],
+  "template_asset": {
+    "file": "SOMA_template_rig.usda",
+    "source": "SOMA_template_rig.usda",
+    "published_version": "v0027",
+    "joint_count": 110
+  },
+  "conventions": {
+    "units": "centimeters",
+    "angle_unit": "radians",
+    "scalar_dtype": "float32",
+    "matrix_layout": "row_major",
+    "rotation_matrix_handedness": "right_handed",
+    "local_euler_order": "XYZ",
+    "quaternion_order": "xyzw",
+    "up_axis": "+Y",
+    "forward_axis": "+Z"
+  },
+  "public_rig_derivation": {
+    "main_joint_names": [
+      "Root",
+      "Hips",
+      "Spine1",
+      "Spine2",
+      "Chest",
+      "Neck1",
+      "Neck2",
+      "Head",
+      "HeadEnd",
+      "Jaw",
+      "LeftEye",
+      "RightEye",
+      "LeftShoulder",
+      "LeftArm",
+      "LeftForeArm",
+      "LeftHand",
+      "LeftHandThumb1",
+      "LeftHandThumb2",
+      "LeftHandThumb3",
+      "LeftHandThumbEnd",
+      "LeftHandIndex1",
+      "LeftHandIndex2",
+      "LeftHandIndex3",
+      "LeftHandIndex4",
+      "LeftHandIndexEnd",
+      "LeftHandMiddle1",
+      "LeftHandMiddle2",
+      "LeftHandMiddle3",
+      "LeftHandMiddle4",
+      "LeftHandMiddleEnd",
+      "LeftHandRing1",
+      "LeftHandRing2",
+      "LeftHandRing3",
+      "LeftHandRing4",
+      "LeftHandRingEnd",
+      "LeftHandPinky1",
+      "LeftHandPinky2",
+      "LeftHandPinky3",
+      "LeftHandPinky4",
+      "LeftHandPinkyEnd",
+      "RightShoulder",
+      "RightArm",
+      "RightForeArm",
+      "RightHand",
+      "RightHandThumb1",
+      "RightHandThumb2",
+      "RightHandThumb3",
+      "RightHandThumbEnd",
+      "RightHandIndex1",
+      "RightHandIndex2",
+      "RightHandIndex3",
+      "RightHandIndex4",
+      "RightHandIndexEnd",
+      "RightHandMiddle1",
+      "RightHandMiddle2",
+      "RightHandMiddle3",
+      "RightHandMiddle4",
+      "RightHandMiddleEnd",
+      "RightHandRing1",
+      "RightHandRing2",
+      "RightHandRing3",
+      "RightHandRing4",
+      "RightHandRingEnd",
+      "RightHandPinky1",
+      "RightHandPinky2",
+      "RightHandPinky3",
+      "RightHandPinky4",
+      "RightHandPinkyEnd",
+      "LeftLeg",
+      "LeftShin",
+      "LeftFoot",
+      "LeftToeBase",
+      "LeftToeEnd",
+      "RightLeg",
+      "RightShin",
+      "RightFoot",
+      "RightToeBase",
+      "RightToeEnd"
+    ],
+    "removed_joint_parent_remap": "nearest_kept_ancestor",
+    "removed_skin_weight_aggregation": "sum_removed_joint_column_into_nearest_kept_ancestor_before_drop"
+  },
+  "channel_extractors": {
+    "local_x_euler": {
+      "type": "local_euler",
+      "matrix_to_euler_order": "XYZ",
+      "channel_axis": "configured_per_segment"
+    },
+    "local_x_swing_twist": {
+      "type": "swing_twist",
+      "space": "local",
+      "twist_axis": "configured_per_segment",
+      "stabilization": "half_angle",
+      "quaternion_order": "xyzw"
+    },
+    "aligned_x_swing_twist": {
+      "type": "swing_twist",
+      "space": "bind_aligned_world_relative",
+      "twist_axis": "+X",
+      "stabilization": "half_angle",
+      "quaternion_order": "xyzw"
+    }
+  },
+  "rotation_extraction": "aligned_x_swing_twist",
+  "segments": [
+    {
+      "start_joint": "LeftArm",
+      "end_joint": "LeftForeArm",
+      "parent_joint": "LeftShoulder",
+      "twist_joints": [
+        "LeftArmTwist1",
+        "LeftArmTwist2",
+        "LeftArmTwist3",
+        "LeftArmTwist4"
+      ],
+      "reverse": true,
+      "source_axis": "x",
+      "source_sign": 1.0
+    },
+    {
+      "start_joint": "LeftForeArm",
+      "end_joint": "LeftHand",
+      "twist_joints": [
+        "LeftForeArmTwist1",
+        "LeftForeArmTwist2",
+        "LeftForeArmTwist3",
+        "LeftForeArmTwist4"
+      ],
+      "reverse": false,
+      "source_axis": "x",
+      "source_sign": 1.0
+    },
+    {
+      "start_joint": "LeftLeg",
+      "end_joint": "LeftShin",
+      "parent_joint": "Hips",
+      "twist_joints": [
+        "LeftLegTwist1",
+        "LeftLegTwist2",
+        "LeftLegTwist3",
+        "LeftLegTwist4"
+      ],
+      "reverse": true,
+      "source_axis": "x",
+      "source_sign": 1.0
+    },
+    {
+      "start_joint": "LeftShin",
+      "end_joint": "LeftFoot",
+      "twist_joints": [
+        "LeftShinTwist1",
+        "LeftShinTwist2",
+        "LeftShinTwist3",
+        "LeftShinTwist4"
+      ],
+      "reverse": false,
+      "source_axis": "x",
+      "source_sign": 1.0
+    },
+    {
+      "start_joint": "RightArm",
+      "end_joint": "RightForeArm",
+      "parent_joint": "RightShoulder",
+      "twist_joints": [
+        "RightArmTwist1",
+        "RightArmTwist2",
+        "RightArmTwist3",
+        "RightArmTwist4"
+      ],
+      "reverse": true,
+      "source_axis": "x",
+      "source_sign": 1.0
+    },
+    {
+      "start_joint": "RightForeArm",
+      "end_joint": "RightHand",
+      "twist_joints": [
+        "RightForeArmTwist1",
+        "RightForeArmTwist2",
+        "RightForeArmTwist3",
+        "RightForeArmTwist4"
+      ],
+      "reverse": false,
+      "source_axis": "x",
+      "source_sign": 1.0
+    },
+    {
+      "start_joint": "RightLeg",
+      "end_joint": "RightShin",
+      "parent_joint": "Hips",
+      "twist_joints": [
+        "RightLegTwist1",
+        "RightLegTwist2",
+        "RightLegTwist3",
+        "RightLegTwist4"
+      ],
+      "reverse": true,
+      "source_axis": "x",
+      "source_sign": 1.0
+    },
+    {
+      "start_joint": "RightShin",
+      "end_joint": "RightFoot",
+      "twist_joints": [
+        "RightShinTwist1",
+        "RightShinTwist2",
+        "RightShinTwist3",
+        "RightShinTwist4"
+      ],
+      "reverse": false,
+      "source_axis": "x",
+      "source_sign": 1.0
+    }
+  ],
+  "parameter_matrices": {
+    "rotation": {
+      "format": "sparse_coo_named",
+      "dtype": "float32",
+      "rows": "segments.twist_joints",
+      "columns": "public_rig_derivation.main_joint_names",
+      "entries": [
+        {
+          "row": "LeftArmTwist1",
+          "column": "LeftArm",
+          "value": -0.95
+        },
+        {
+          "row": "LeftArmTwist1",
+          "column": "LeftForeArm",
+          "value": 0.05
+        },
+        {
+          "row": "LeftArmTwist2",
+          "column": "LeftArm",
+          "value": -0.6666667
+        },
+        {
+          "row": "LeftArmTwist2",
+          "column": "LeftForeArm",
+          "value": 0.3333333
+        },
+        {
+          "row": "LeftArmTwist3",
+          "column": "LeftArm",
+          "value": -0.3333333
+        },
+        {
+          "row": "LeftArmTwist3",
+          "column": "LeftForeArm",
+          "value": 0.6666667
+        },
+        {
+          "row": "LeftArmTwist4",
+          "column": "LeftArm",
+          "value": -0.05
+        },
+        {
+          "row": "LeftArmTwist4",
+          "column": "LeftForeArm",
+          "value": 0.95
+        },
+        {
+          "row": "LeftForeArmTwist1",
+          "column": "LeftHand",
+          "value": 0.05
+        },
+        {
+          "row": "LeftForeArmTwist2",
+          "column": "LeftHand",
+          "value": 0.3333333
+        },
+        {
+          "row": "LeftForeArmTwist3",
+          "column": "LeftHand",
+          "value": 0.6666667
+        },
+        {
+          "row": "LeftForeArmTwist4",
+          "column": "LeftHand",
+          "value": 0.95
+        },
+        {
+          "row": "LeftLegTwist1",
+          "column": "LeftLeg",
+          "value": -0.95
+        },
+        {
+          "row": "LeftLegTwist1",
+          "column": "LeftShin",
+          "value": 0.05
+        },
+        {
+          "row": "LeftLegTwist2",
+          "column": "LeftLeg",
+          "value": -0.6666667
+        },
+        {
+          "row": "LeftLegTwist2",
+          "column": "LeftShin",
+          "value": 0.3333333
+        },
+        {
+          "row": "LeftLegTwist3",
+          "column": "LeftLeg",
+          "value": -0.3333333
+        },
+        {
+          "row": "LeftLegTwist3",
+          "column": "LeftShin",
+          "value": 0.6666667
+        },
+        {
+          "row": "LeftLegTwist4",
+          "column": "LeftLeg",
+          "value": -0.05
+        },
+        {
+          "row": "LeftLegTwist4",
+          "column": "LeftShin",
+          "value": 0.95
+        },
+        {
+          "row": "LeftShinTwist1",
+          "column": "LeftFoot",
+          "value": 0.05
+        },
+        {
+          "row": "LeftShinTwist2",
+          "column": "LeftFoot",
+          "value": 0.3333333
+        },
+        {
+          "row": "LeftShinTwist3",
+          "column": "LeftFoot",
+          "value": 0.6666667
+        },
+        {
+          "row": "LeftShinTwist4",
+          "column": "LeftFoot",
+          "value": 0.95
+        },
+        {
+          "row": "RightArmTwist1",
+          "column": "RightArm",
+          "value": -0.95
+        },
+        {
+          "row": "RightArmTwist1",
+          "column": "RightForeArm",
+          "value": 0.05
+        },
+        {
+          "row": "RightArmTwist2",
+          "column": "RightArm",
+          "value": -0.6666667
+        },
+        {
+          "row": "RightArmTwist2",
+          "column": "RightForeArm",
+          "value": 0.3333333
+        },
+        {
+          "row": "RightArmTwist3",
+          "column": "RightArm",
+          "value": -0.3333333
+        },
+        {
+          "row": "RightArmTwist3",
+          "column": "RightForeArm",
+          "value": 0.6666667
+        },
+        {
+          "row": "RightArmTwist4",
+          "column": "RightArm",
+          "value": -0.05
+        },
+        {
+          "row": "RightArmTwist4",
+          "column": "RightForeArm",
+          "value": 0.95
+        },
+        {
+          "row": "RightForeArmTwist1",
+          "column": "RightHand",
+          "value": 0.05
+        },
+        {
+          "row": "RightForeArmTwist2",
+          "column": "RightHand",
+          "value": 0.3333333
+        },
+        {
+          "row": "RightForeArmTwist3",
+          "column": "RightHand",
+          "value": 0.6666667
+        },
+        {
+          "row": "RightForeArmTwist4",
+          "column": "RightHand",
+          "value": 0.95
+        },
+        {
+          "row": "RightLegTwist1",
+          "column": "RightLeg",
+          "value": -0.95
+        },
+        {
+          "row": "RightLegTwist1",
+          "column": "RightShin",
+          "value": 0.05
+        },
+        {
+          "row": "RightLegTwist2",
+          "column": "RightLeg",
+          "value": -0.6666667
+        },
+        {
+          "row": "RightLegTwist2",
+          "column": "RightShin",
+          "value": 0.3333333
+        },
+        {
+          "row": "RightLegTwist3",
+          "column": "RightLeg",
+          "value": -0.3333333
+        },
+        {
+          "row": "RightLegTwist3",
+          "column": "RightShin",
+          "value": 0.6666667
+        },
+        {
+          "row": "RightLegTwist4",
+          "column": "RightLeg",
+          "value": -0.05
+        },
+        {
+          "row": "RightLegTwist4",
+          "column": "RightShin",
+          "value": 0.95
+        },
+        {
+          "row": "RightShinTwist1",
+          "column": "RightFoot",
+          "value": 0.05
+        },
+        {
+          "row": "RightShinTwist2",
+          "column": "RightFoot",
+          "value": 0.3333333
+        },
+        {
+          "row": "RightShinTwist3",
+          "column": "RightFoot",
+          "value": 0.6666667
+        },
+        {
+          "row": "RightShinTwist4",
+          "column": "RightFoot",
+          "value": 0.95
+        }
+      ]
+    },
+    "translation": {
+      "format": "sparse_coo_named",
+      "dtype": "float32",
+      "identity_rows_default": true,
+      "rows": "template_joint_names",
+      "columns": "template_joint_names",
+      "entries": [
+        {
+          "row": "LeftArmTwist1",
+          "column": "LeftArm",
+          "value": 0.95
+        },
+        {
+          "row": "LeftArmTwist1",
+          "column": "LeftForeArm",
+          "value": 0.05
+        },
+        {
+          "row": "LeftArmTwist2",
+          "column": "LeftArm",
+          "value": 0.6666667
+        },
+        {
+          "row": "LeftArmTwist2",
+          "column": "LeftForeArm",
+          "value": 0.3333333
+        },
+        {
+          "row": "LeftArmTwist3",
+          "column": "LeftArm",
+          "value": 0.3333333
+        },
+        {
+          "row": "LeftArmTwist3",
+          "column": "LeftForeArm",
+          "value": 0.6666667
+        },
+        {
+          "row": "LeftArmTwist4",
+          "column": "LeftArm",
+          "value": 0.05
+        },
+        {
+          "row": "LeftArmTwist4",
+          "column": "LeftForeArm",
+          "value": 0.95
+        },
+        {
+          "row": "LeftForeArmTwist1",
+          "column": "LeftForeArm",
+          "value": 0.95
+        },
+        {
+          "row": "LeftForeArmTwist1",
+          "column": "LeftHand",
+          "value": 0.05
+        },
+        {
+          "row": "LeftForeArmTwist2",
+          "column": "LeftForeArm",
+          "value": 0.6666667
+        },
+        {
+          "row": "LeftForeArmTwist2",
+          "column": "LeftHand",
+          "value": 0.3333333
+        },
+        {
+          "row": "LeftForeArmTwist3",
+          "column": "LeftForeArm",
+          "value": 0.3333333
+        },
+        {
+          "row": "LeftForeArmTwist3",
+          "column": "LeftHand",
+          "value": 0.6666667
+        },
+        {
+          "row": "LeftForeArmTwist4",
+          "column": "LeftForeArm",
+          "value": 0.05
+        },
+        {
+          "row": "LeftForeArmTwist4",
+          "column": "LeftHand",
+          "value": 0.95
+        },
+        {
+          "row": "LeftLegTwist1",
+          "column": "LeftLeg",
+          "value": 0.95
+        },
+        {
+          "row": "LeftLegTwist1",
+          "column": "LeftShin",
+          "value": 0.05
+        },
+        {
+          "row": "LeftLegTwist2",
+          "column": "LeftLeg",
+          "value": 0.6666667
+        },
+        {
+          "row": "LeftLegTwist2",
+          "column": "LeftShin",
+          "value": 0.3333333
+        },
+        {
+          "row": "LeftLegTwist3",
+          "column": "LeftLeg",
+          "value": 0.3333333
+        },
+        {
+          "row": "LeftLegTwist3",
+          "column": "LeftShin",
+          "value": 0.6666667
+        },
+        {
+          "row": "LeftLegTwist4",
+          "column": "LeftLeg",
+          "value": 0.05
+        },
+        {
+          "row": "LeftLegTwist4",
+          "column": "LeftShin",
+          "value": 0.95
+        },
+        {
+          "row": "LeftShinTwist1",
+          "column": "LeftShin",
+          "value": 0.95
+        },
+        {
+          "row": "LeftShinTwist1",
+          "column": "LeftFoot",
+          "value": 0.05
+        },
+        {
+          "row": "LeftShinTwist2",
+          "column": "LeftShin",
+          "value": 0.6666667
+        },
+        {
+          "row": "LeftShinTwist2",
+          "column": "LeftFoot",
+          "value": 0.3333333
+        },
+        {
+          "row": "LeftShinTwist3",
+          "column": "LeftShin",
+          "value": 0.3333333
+        },
+        {
+          "row": "LeftShinTwist3",
+          "column": "LeftFoot",
+          "value": 0.6666667
+        },
+        {
+          "row": "LeftShinTwist4",
+          "column": "LeftShin",
+          "value": 0.05
+        },
+        {
+          "row": "LeftShinTwist4",
+          "column": "LeftFoot",
+          "value": 0.95
+        },
+        {
+          "row": "RightArmTwist1",
+          "column": "RightArm",
+          "value": 0.95
+        },
+        {
+          "row": "RightArmTwist1",
+          "column": "RightForeArm",
+          "value": 0.05
+        },
+        {
+          "row": "RightArmTwist2",
+          "column": "RightArm",
+          "value": 0.6666667
+        },
+        {
+          "row": "RightArmTwist2",
+          "column": "RightForeArm",
+          "value": 0.3333333
+        },
+        {
+          "row": "RightArmTwist3",
+          "column": "RightArm",
+          "value": 0.3333333
+        },
+        {
+          "row": "RightArmTwist3",
+          "column": "RightForeArm",
+          "value": 0.6666667
+        },
+        {
+          "row": "RightArmTwist4",
+          "column": "RightArm",
+          "value": 0.05
+        },
+        {
+          "row": "RightArmTwist4",
+          "column": "RightForeArm",
+          "value": 0.95
+        },
+        {
+          "row": "RightForeArmTwist1",
+          "column": "RightForeArm",
+          "value": 0.95
+        },
+        {
+          "row": "RightForeArmTwist1",
+          "column": "RightHand",
+          "value": 0.05
+        },
+        {
+          "row": "RightForeArmTwist2",
+          "column": "RightForeArm",
+          "value": 0.6666667
+        },
+        {
+          "row": "RightForeArmTwist2",
+          "column": "RightHand",
+          "value": 0.3333333
+        },
+        {
+          "row": "RightForeArmTwist3",
+          "column": "RightForeArm",
+          "value": 0.3333333
+        },
+        {
+          "row": "RightForeArmTwist3",
+          "column": "RightHand",
+          "value": 0.6666667
+        },
+        {
+          "row": "RightForeArmTwist4",
+          "column": "RightForeArm",
+          "value": 0.05
+        },
+        {
+          "row": "RightForeArmTwist4",
+          "column": "RightHand",
+          "value": 0.95
+        },
+        {
+          "row": "RightLegTwist1",
+          "column": "RightLeg",
+          "value": 0.95
+        },
+        {
+          "row": "RightLegTwist1",
+          "column": "RightShin",
+          "value": 0.05
+        },
+        {
+          "row": "RightLegTwist2",
+          "column": "RightLeg",
+          "value": 0.6666667
+        },
+        {
+          "row": "RightLegTwist2",
+          "column": "RightShin",
+          "value": 0.3333333
+        },
+        {
+          "row": "RightLegTwist3",
+          "column": "RightLeg",
+          "value": 0.3333333
+        },
+        {
+          "row": "RightLegTwist3",
+          "column": "RightShin",
+          "value": 0.6666667
+        },
+        {
+          "row": "RightLegTwist4",
+          "column": "RightLeg",
+          "value": 0.05
+        },
+        {
+          "row": "RightLegTwist4",
+          "column": "RightShin",
+          "value": 0.95
+        },
+        {
+          "row": "RightShinTwist1",
+          "column": "RightShin",
+          "value": 0.95
+        },
+        {
+          "row": "RightShinTwist1",
+          "column": "RightFoot",
+          "value": 0.05
+        },
+        {
+          "row": "RightShinTwist2",
+          "column": "RightShin",
+          "value": 0.6666667
+        },
+        {
+          "row": "RightShinTwist2",
+          "column": "RightFoot",
+          "value": 0.3333333
+        },
+        {
+          "row": "RightShinTwist3",
+          "column": "RightShin",
+          "value": 0.3333333
+        },
+        {
+          "row": "RightShinTwist3",
+          "column": "RightFoot",
+          "value": 0.6666667
+        },
+        {
+          "row": "RightShinTwist4",
+          "column": "RightShin",
+          "value": 0.05
+        },
+        {
+          "row": "RightShinTwist4",
+          "column": "RightFoot",
+          "value": 0.95
+        }
+      ]
+    }
+  },
+  "output_emitters": {
+    "rotation": "emit local axis-angle-derived rotation matrices on each twist joint using the segment source axis and sign",
+    "translation": "emit world translations from the sparse translation parameter matrix before FK/LBS handoff; twist helpers are distributed at 5%, 35%, 65%, and 95% along each public segment"
+  },
+  "evaluation_order": [
+    "derive public SOMA rig by stable main_joint_names when procedural transforms are disabled",
+    "extract configured local twist channels from source public rotations",
+    "multiply extracted channels by the sparse rotation matrix",
+    "emit twist-joint local rotations on the configured axes",
+    "multiply fitted public world translations by the sparse translation matrix",
+    "handoff the expanded template skeleton to FK and LBS"
+  ]
+}
