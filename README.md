@@ -30,11 +30,28 @@ The [Colab notebook](https://colab.research.google.com/github/Apache0ne/I-3D/blo
 | 8. Generate motion | MotionBricks-SOMA-RP-v1, FP32/mixed FP16 ONNX | 30 FPS joint transforms NPZ |
 | 9. Animate/export | Blender rest/pose transforms and glTF | Animated, textured GLB + editable `.blend` |
 
+## CUDA 13 Colab installation (October 2026)
+
+The [updated Colab notebook](notebooks/I-3D_End_to_End_Colab.ipynb) uses CUDA **13.0** for its PyTorch model stages. Do **not** run the older CUDA-12 installation cells from a stale Colab tab. Restart the Colab runtime and reopen the notebook from `main`.
+
+| Stage | Research environment | CUDA 13 status |
+|---|---|---|
+| Hi3D + Hunyuan3D-2mini | Python 3.10, PyTorch 2.11.0+cu130, third-party cu130 cumm/spconv wheels | **Experimental** (official Hi3D only validated cu124 / PyTorch 2.5) |
+| Hunyuan3D-Paint 2.1 | Python 3.10, PyTorch 2.11.0+cu130, `cupy-cuda13x`, original rasterizer built with nvcc 13.0 | **Install path updated**, inference unverified |
+| SkinTokens/TokenRig | Python 3.11, PyTorch 2.11.0+cu130 | **Install path updated**, inference unverified |
+| MotionBricks-SOMA | Python 3.12, original NVIDIA TensorRT runtime | Upstream TensorRT dependency retained; **not** a native cu130 Torch stage |
+
+I-3D install helpers:
+- `python scripts/install_hi3d_cuda13.py --python /content/i3d_envs/hi3d/bin/python`
+- `python scripts/install_paint_cuda13.py --python /content/i3d_envs/paint/bin/python`
+
+CUDA 13 SpConv/cumm wheels are sourced from [fafraob/spconv-wheels](https://github.com/fafraob/spconv-wheels), an **unofficial third-party CUDA-13 rebuild** of upstream SpConv/cumm. The documented matching pair is SpConv 2.3.8 + cumm 0.8.2. Inspect its source, releases and licensing before running. We do not quietly fall back to CUDA-12 binaries; errors are reported for debugging. Original pretrained model weights are unchanged, and **this port has not yet passed a GPU end-to-end run**. The original Hi3D/Tencent licenses and TensorRT dependencies still apply.
+
 ## Install upstream source and models
 
 `python scripts/vendor_sources.py` clones the **complete upstream source trees** at their current commits into `vendor/`, preserving original LICENSE/NOTICE files. To pin exact commits, use `--revision-file pins.json`. Large model weights and checkpoints are deliberately not stored in this Git repository. They must be downloaded from the upstream model releases under their own licenses. Do not claim bundled NVIDIA sample motions are unrestricted; those have separate evaluation terms.
 
-**Each upstream model needs its original tested environment.** Hi3D documents Python 3.10 / CUDA 12.4 and very high GPU memory for its 1536-resolution mode; TokenRig recommends >=14 GB VRAM; MotionBricks uses TensorRT. Do not install incompatible PyTorch stacks into a single venv. Set `I3D_HI3D_PYTHON`, `I3D_PAINT_PYTHON`, `I3D_TOKENRIG_PYTHON`, and the `--motion-python` option to the correct environment interpreters. Blender is a separate executable. Pretrained files are **not included**.
+**Each upstream model needs its original tested environment.** Hi3D officially documents Python 3.10 / CUDA 12.4 and very high GPU memory for its 1536-resolution mode; this I-3D notebook now experiments with CUDA-13 kernels instead (not Hi3D-verified). TokenRig recommends >=14 GB VRAM; MotionBricks uses TensorRT. Do not install incompatible PyTorch stacks into a single venv. Set `I3D_HI3D_PYTHON`, `I3D_PAINT_PYTHON`, `I3D_TOKENRIG_PYTHON`, and the `--motion-python` option to the correct environment interpreters. Blender is a separate executable. Pretrained files are **not included**.
 
 MotionBricks Git LFS assets can be hydrated with `python scripts/hydrate_motionbricks.py --precision fp32`. This retrieves the original 30-joint reference USD and ONNX graph without committing weights to I-3D. Other model weights must be downloaded under their upstream terms. Hi3D's pipeline requires the coarse Hunyuan3D-2mini dependencies installed per the upstream Hi3D documentation. For Hunyuan3D-Paint, download the RealESRGAN checkpoint according to its README.
 
