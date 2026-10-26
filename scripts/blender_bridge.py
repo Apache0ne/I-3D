@@ -96,7 +96,7 @@ def main():
     ref=json.loads(Path(a.reference).read_text())
     names=ref['joint_names'];parents=ref['parents']
     if len(names)!=30 or names[0]!='Hips':raise ValueError('Not the SOMA MotionBricks 30-joint reference')
-    rest=np.array(ref['bind_world_soma'],dtype=float)
+    rest=np.array(ref['rest_world_soma'],dtype=float)
     if rest.shape!=(30,4,4):raise ValueError('Invalid SOMA reference matrices')
     for i in range(30):check_rotation(rest[i,:3,:3])
     # Canonical SOMA Y-up to Blender Z-up: +90 degrees about X.
