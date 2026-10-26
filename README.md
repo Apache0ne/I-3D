@@ -6,6 +6,16 @@
 
 Open [I-3D_End_to_End_Colab.ipynb](notebooks/I-3D_End_to_End_Colab.ipynb) in [Google Colab](https://colab.research.google.com/github/Apache0ne/I-3D/blob/main/notebooks/I-3D_End_to_End_Colab.ipynb). It installs separate model environments, downloads the original external model assets, walks through geometry, paint, auto-rigging, SOMA bridge, two manually authored 3D poses, and MotionBricks inference/export. Use an NVIDIA GPU; heavier Hi3D modes may exceed Colab GPU memory. The notebook has not been executed or validated in Colab.
 
+## Interactive 3D Studio — no Blender GUI needed
+
+The [Colab notebook](https://colab.research.google.com/github/Apache0ne/I-3D/blob/main/notebooks/I-3D_End_to_End_Colab.ipynb) opens the new [Three.js production viewer](viewer/index.html) directly in a large output cell using [viewer_server.py](scripts/viewer_server.py). It reads all five generated GLBs and supporting output artifacts from the same Colab workspace.
+
+**Viewport features:** PBR lighting, editable exposure, multiple light presets, scene background, wireframe, normal/depth/albedo/clay/skin-weight views, skeleton overlay, joint labels, mesh inspector, joint picking, technical metadata, ground/grid/axes/bounds, image reference overlay, fullscreen, orbit/pan/zoom, front/side/top camera presets, side-by-side stage comparison and GLB downloads. For animated GLBs, the viewer has play/pause, clip selection, timeline seeking, single-frame stepping, speed controls and looping. It can save screenshots as PNG and record browser-rendered video as WebM.
+
+**In-Colab pose editor:** On the SOMA stage, select the actual 30-joint character bones and edit local rotations using the gizmo or numeric fields; move Hips in the right-handed **glTF Y-up** coordinate frame. Save **START** and **TARGET** in the viewer. They become `outputs/character/viewer_poses.json`, and [author_viewer_poses.py](scripts/author_viewer_poses.py) converts those poses with the explicit glTF Y-up → Blender Z-up rotation into a two-frame `.blend` file. The existing MotionBricks step then creates the animated GLB, which can immediately be viewed and recorded without leaving Colab. Blender runs **headlessly as an internal export dependency**; no Blender GUI or desktop installation is required by the user.
+
+**Boundaries:** This is new original I-3D integration code. GPU inference and Three.js-to-Blender joint deformation on real generated characters have not yet been validated end-to-end; review orientation, proportions and skinning before relying on results. The viewer loads the Three.js MIT-licensed browser libraries from jsDelivr at runtime, and requires the browser to reach that CDN. It is served by the local Colab port proxy, not a hosted remote service.
+
 ## End-to-end pipeline
 
 | Stage | Original implementation | Output |
