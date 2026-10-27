@@ -219,6 +219,7 @@ def command_prepare(a):
         "resolution": a.resolution,
         "steps": a.steps,
         "background_removal": True,
+        "hi3d_entrypoint_sha256": sha256(ROOT / "vendor" / "Hi3Dv1.0" / "demo" / "image_to_mesh.py"),
     }
     if _needs_generation(geometry, geometry_params, a.force):
         call(py("hi3d"), "demo/image_to_mesh.py",
@@ -237,6 +238,8 @@ def command_prepare(a):
         "model": "tencent/Hunyuan3D-2.1",
         "views": 6,
         "resolution": 512,
+        "paint_adapter_sha256": sha256(ROOT / "scripts" / "paint_hunyuan.py"),
+        "paint_pipeline_sha256": sha256(ROOT / "vendor" / "Hunyuan3D-2.1" / "hy3dpaint" / "textureGenPipeline.py"),
     }
     if _needs_generation(texture, paint_params, a.force):
         call(py("paint"), ROOT / "scripts" / "paint_hunyuan.py",
@@ -246,7 +249,11 @@ def command_prepare(a):
         write_stamp(texture, paint_params)
     validate_glb(texture)
 
-    token_params = {"textured_sha256": sha256(texture), "use_transfer": True}
+    token_params = {
+        "textured_sha256": sha256(texture),
+        "use_transfer": True,
+        "tokenrig_inference_sha256": sha256(ROOT / "vendor" / "SkinTokens" / "demo.py"),
+    }
     if _needs_generation(rigged, token_params, a.force):
         token = ROOT / "vendor" / "SkinTokens"
         call(py("tokenrig"), token / "demo.py",
@@ -256,7 +263,10 @@ def command_prepare(a):
 
     usd = ROOT / "vendor" / "motionbricks" / "motionbricks" / "assets" / "human" / "soma_base_skel_minimal_no_root.usd"
     required_binary_asset(usd)
-    ref_params = {"soma_usd_sha256": sha256(usd), "joints": 30}
+    ref_params = {
+        "soma_usd_sha256": sha256(usd), "joints": 30,
+        "exporter_sha256": sha256(ROOT / "scripts" / "export_soma_reference.py"),
+    }
     if _needs_generation(reference, ref_params, a.force, glb=False):
         call(py("motion"), ROOT / "scripts" / "export_soma_reference.py",
              "--usd", usd, "--output", reference)
@@ -271,6 +281,7 @@ def command_prepare(a):
         "rigged_sha256": sha256(rigged),
         "reference_sha256": sha256(reference),
         "forward": a.forward,
+        "bridge_adapter_sha256": sha256(ROOT / "scripts" / "blender_bridge.py"),
     }
     use_cached = (
         not a.force
@@ -338,7 +349,9 @@ def pack(a):
     with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as z:
         for p in sorted(work.iterdir()):
             if p.is_file() and p != bundle and p.suffix.lower() in (
-                ".glb", ".png", ".jpg", ".webp", ".json", ".npz", ".blend", ".mp4", ".webm"
+                ".glb", ".gltf", ".bin", ".obj", ".mtl", ".png", ".jpg",
+                ".jpeg", ".webp", ".exr", ".hdr", ".json", ".npz", ".blend",
+                ".mp4", ".webm", ".usda", ".usd"
             ):
                 z.write(p, arcname=p.name)
     require(bundle)
