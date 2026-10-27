@@ -1,0 +1,31 @@
+name: I-3D_web CPU code and WebGPU host validation
+on:
+  push:
+    branches:
+      - I-3D_web
+  pull_request:
+    branches:
+      - I-3D_web
+jobs:
+  webgpu-cpu-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: WebGPU host-side Q4 / uniform / dispatch contract tests
+        run: npm test --prefix webgpu
+      - name: Check browser runtime JavaScript syntax
+        run: |
+          node --check webgpu/runtime.js
+          node --check webgpu/ops.js
+          node --check webgpu/browser-tests.js
+          node --check webgpu/app.js
+      - name: Validate Python Colab and viewer sources compile
+        run: python -m compileall -q scripts i3d
+      - name: Verify dedicated branch and no main target
+        run: |
+          test "${GITHUB_REF_NAME}" = "I-3D_web" || test "${GITHUB_EVENT_NAME}" = "pull_request"
+  # A browser/adapter is required for shader compilation and real correctness.
+  # The in-page suite at /webgpu/ is NOT replaced by these CPU checks.
