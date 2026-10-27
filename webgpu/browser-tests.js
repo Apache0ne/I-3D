@@ -1,6 +1,7 @@
 // Browser GPU correctness tests vs independently implemented CPU math.
 // A passing CPU Node test NEVER counts as passing WebGPU tests.
 import {I3DWebGPU,packSignedI4,unpackSignedI4,quantizeRowsI4,packTernary2,unpackTernary2} from "./ops.js";
+import {GGML_TYPES,referenceQuantMatvec} from "./gguf-formats.js";
 
 const f = values => Float32Array.from(values);
 function near(actual,reference,label,abs=2e-4,rel=2e-4){
@@ -75,6 +76,35 @@ export async function runBrowserSuite(report=()=>{}) {
     }
     return o;
   });
+  // These are exact upstream GGUF serialized bytes; not I-3D-only packing.
+  const q2=new Uint8Array(18*2);
+  q2[0]=0;q2[1]=0x3c;  // scale 1 in IEEE F16
+  q2[18]=0;q2[19]=0x40; // scale 2
+  q2.fill(0x55,2,18);q2.fill(0x55,20,36);
+  q2[2]=0xe4;q2[20]=0x1b;
+  const q2x=f(Array.from({length:64},(_,i)=>(i%7-3)/4));
+  await test("GGUF Q2_0 g64 direct-byte GEMV",()=>engine.ggufQuantMatvec(q2,q2x,2,64,GGML_TYPES.Q2_0),
+    ()=>referenceQuantMatvec(q2,GGML_TYPES.Q2_0,2,64,q2x));
+
+  const mx=new Uint8Array(17*3);
+  for(let r=0;r<3;r++){
+    mx[r*17]=r+125; // E8M0 scales 2^-3, 2^-2, 2^-1
+    for(let i=0;i<16;i++)mx[r*17+1+i]=((i+8)%16)<<4 | (i%16);
+  }
+  const mxx=f(Array.from({length:32},(_,i)=>(i%5-.5)*.1));
+  await test("GGUF MXFP4 E8M0+E2M1 direct GEMV",
+    ()=>engine.ggufQuantMatvec(mx,mxx,3,32,GGML_TYPES.MXFP4),
+    ()=>referenceQuantMatvec(mx,GGML_TYPES.MXFP4,3,32,mxx),{abs:6e-5});
+
+  const nv=new Uint8Array(36*2);
+  for(let r=0;r<2;r++){
+    for(let g=0;g<4;g++)nv[r*36+g]=0x38+g*8;
+    for(let i=0;i<32;i++)nv[r*36+4+i]=((i+8)%16)<<4 | (i%16);
+  }
+  const nvx=f(Array.from({length:64},(_,i)=>Math.sin(i*.21)));
+  await test("GGUF NVFP4 UE4M3+E2M1 direct GEMV",
+    ()=>engine.ggufQuantMatvec(nv,nvx,2,64,GGML_TYPES.NVFP4),
+    ()=>referenceQuantMatvec(nv,GGML_TYPES.NVFP4,2,64,nvx),{abs:6e-4});
   const x=f([1,2,3,4,-1,-2,-3,0.25,10,3,4,5,6,7]);
   await test("stable softmax 2×7",()=>engine.softmax(x,2,7),()=>{
    const o=new Float32Array(14);
