@@ -14,12 +14,21 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 import zipfile
+
+from i3d.artifacts import (
+    cache_valid,
+    sha256,
+    validate_glb,
+    write_stamp,
+    required_binary_asset,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV_ROOT = Path(os.getenv("I3D_ENV_ROOT", "/content/i3d_envs"))
@@ -148,12 +157,22 @@ def setup_motion(uv, precision):
     p = ensure_env("motion", "3.12", uv)
     src = ROOT / "vendor" / "motionbricks"
     call(uv, "pip", "install", "--python", p, "-e", src)
-    # NVIDIA model is an original TensorRT runtime (may retain CUDA12
-    # deps even when the Hi3D/Paint model environments run Torch cu130).
-    ref = src / "motionbricks" / "assets" / "human" / "soma_base_skel_minimal_no_root.usd"
-    if not ref.is_file() or ref.stat().st_size < 1024:
+    # Check the selected ONNX, not merely the skeleton. A prior fp32 run
+    # must not suppress hydration of fp16 when precision changes.
+    asset_dir = src / "motionbricks" / "assets"
+    skel = asset_dir / "human" / "soma_base_skel_minimal_no_root.usd"
+    onnx = asset_dir / "onnx" / "soma" / f"mmm_v6_soma_{precision}.onnx"
+    missing = False
+    for asset in (skel, onnx):
+        try:
+            required_binary_asset(asset)
+        except (FileNotFoundError, ValueError):
+            missing = True
+    if missing:
         call(sys.executable, ROOT / "scripts" / "hydrate_motionbricks.py",
              "--precision", precision)
+    required_binary_asset(skel)
+    required_binary_asset(onnx)
 
 
 def setup(a):
@@ -166,17 +185,40 @@ def setup(a):
     print("SETUP COMPLETE for:", ", ".join(stages), flush=True)
 
 
+def _needs_generation(path, params, force, *, glb=True):
+    """Invalidate stale outputs, but keep artifacts from a matching prior run."""
+    path = Path(path)
+    if not force and cache_valid(path, params, glb=glb):
+        print("CACHE HIT", path, flush=True)
+        return False
+    # Avoid treating a previous output as success when a subprocess exits
+    # without writing a new artifact.
+    path.unlink(missing_ok=True)
+    path.with_name(path.name + ".i3d.json").unlink(missing_ok=True)
+    return True
+
+
 def command_prepare(a):
     image = require(Path(a.image).resolve())
     work = Path(a.output).resolve()
     work.mkdir(parents=True, exist_ok=True)
+    image_hash = sha256(image)
     geometry = work / "01_geometry.glb"
     texture = work / "02_textured.glb"
     rigged = work / "03_tokenrig.glb"
     soma = work / "04_soma_character.glb"
     reference = work / "soma_reference.json"
     blender = shutil.which("blender") or "/usr/bin/blender"
-    if not geometry.is_file() or a.force:
+
+    geometry_params = {
+        "input_sha256": image_hash,
+        "model": "hi3d-official/Hi3Dv1.0",
+        "coarse_model": "tencent/Hunyuan3D-2mini",
+        "resolution": a.resolution,
+        "steps": a.steps,
+        "background_removal": True,
+    }
+    if _needs_generation(geometry, geometry_params, a.force):
         call(py("hi3d"), "demo/image_to_mesh.py",
              "--image", image, "--output", geometry,
              "--model", "hi3d-official/Hi3Dv1.0",
@@ -184,32 +226,79 @@ def command_prepare(a):
              "--num-inference-steps", a.steps,
              "--remove-background",
              cwd=ROOT / "vendor" / "Hi3Dv1.0")
-    require(geometry)
-    if not texture.is_file() or a.force:
+        write_stamp(geometry, geometry_params)
+    validate_glb(geometry)
+
+    paint_params = {
+        "geometry_sha256": sha256(geometry),
+        "image_sha256": image_hash,
+        "model": "tencent/Hunyuan3D-2.1",
+        "views": 6,
+        "resolution": 512,
+    }
+    if _needs_generation(texture, paint_params, a.force):
         call(py("paint"), ROOT / "scripts" / "paint_hunyuan.py",
              "--mesh", geometry, "--image", image, "--output", texture,
              "--resolution", 512, "--views", 6,
              cwd=ROOT / "vendor" / "Hunyuan3D-2.1")
-    require(texture)
-    if not rigged.is_file() or a.force:
+        write_stamp(texture, paint_params)
+    validate_glb(texture)
+
+    token_params = {"textured_sha256": sha256(texture), "use_transfer": True}
+    if _needs_generation(rigged, token_params, a.force):
         token = ROOT / "vendor" / "SkinTokens"
         call(py("tokenrig"), token / "demo.py",
              "--input", texture, "--output", rigged, "--use_transfer", cwd=token)
-    require(rigged)
-    if not reference.is_file() or a.force:
-        src = ROOT / "vendor" / "motionbricks" / "motionbricks" / "assets" / "human" / "soma_base_skel_minimal_no_root.usd"
-        require(src)
+        write_stamp(rigged, token_params)
+    validate_glb(rigged)
+
+    usd = ROOT / "vendor" / "motionbricks" / "motionbricks" / "assets" / "human" / "soma_base_skel_minimal_no_root.usd"
+    required_binary_asset(usd)
+    ref_params = {"soma_usd_sha256": sha256(usd), "joints": 30}
+    if _needs_generation(reference, ref_params, a.force, glb=False):
         call(py("motion"), ROOT / "scripts" / "export_soma_reference.py",
-             "--usd", src, "--output", reference)
+             "--usd", usd, "--output", reference)
+        document = json.loads(require(reference).read_text(encoding="utf-8"))
+        if len(document.get("joint_names", [])) != 30:
+            raise ValueError("SOMA reference does not have the required 30 joints")
+        write_stamp(reference, ref_params, glb=False)
     require(reference)
-    if not soma.is_file() or a.force:
+
+    bridge_path = soma.with_suffix(".bridge.json")
+    bridge_params = {
+        "rigged_sha256": sha256(rigged),
+        "reference_sha256": sha256(reference),
+        "forward": a.forward,
+    }
+    use_cached = (
+        not a.force
+        and cache_valid(soma, bridge_params)
+        and bridge_path.is_file()
+    )
+    if use_cached:
+        try:
+            bridge_document = json.loads(bridge_path.read_text(encoding="utf-8"))
+            use_cached = (
+                bridge_document.get("forward") == a.forward
+                and bridge_document.get("handedness") == "right-handed"
+            )
+        except (OSError, ValueError, TypeError):
+            use_cached = False
+    if not use_cached:
+        _needs_generation(soma, bridge_params, True)
+        bridge_path.unlink(missing_ok=True)
         call(blender, "-b", "--python", ROOT / "scripts" / "blender_bridge.py", "--",
              "--input", rigged, "--reference", reference,
              "--output", soma, "--forward", a.forward)
-    require(soma)
-    require(soma.with_suffix(".bridge.json"))
+        validate_glb(soma)
+        bridge_document = json.loads(require(bridge_path).read_text(encoding="utf-8"))
+        if bridge_document.get("forward") != a.forward:
+            raise ValueError("SOMA bridge diagnostics have wrong forward direction")
+        write_stamp(soma, bridge_params)
+    validate_glb(soma)
+    require(bridge_path)
     print("\nCHARACTER_READY", soma, flush=True)
-    print("Open notebook 3D Studio and save BOTH START and TARGET poses.", flush=True)
+    print("Open the in-Colab 3D Studio and save BOTH START and TARGET poses.", flush=True)
 
 
 def command_animate(a):
