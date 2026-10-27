@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>I-3D Web — BRIA RMBG 2.0 background removal</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,Segoe UI,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0b1018;color:#e4efff}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:17px 22px;border-bottom:1px solid #28445d;background:#121f2d}
+h1{font-size:19px;margin:0}
+a{color:#9cceff}
+small,.small{color:#9db3c9;font-size:12px}
+main{max-width:1450px;margin:0 auto;padding:20px;display:grid;grid-template-columns:340px minmax(0,1fr);gap:18px}
+section{border:1px solid #2b4357;background:#141e2b;border-radius:10px;padding:16px}
+h2{font-size:15px;margin:0 0 12px}
+p{font-size:13px;color:#b3c4d8;line-height:1.55}
+label{display:block;font-size:12px;color:#b7c9df;margin:14px 0 6px}
+select,input[type=file],button{background:#0e1b29;color:#e2f1ff;border:1px solid #45637e;border-radius:6px;padding:9px;width:100%}
+button{background:#234e78;cursor:pointer;margin-top:10px}
+button:hover{background:#2b6595}
+button:disabled{opacity:.5;cursor:wait}
+button.secondary{background:#172a3f}
+button:focus-visible{outline:2px solid #81caff}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.preview{position:relative;min-width:0}
+.preview canvas{width:100%;height:auto;aspect-ratio:1/1;object-fit:contain;display:block;border-radius:7px;border:1px solid #35516e;background-color:#d5dee8;background-image:linear-gradient(45deg,#bac6d6 25%,transparent 25%),linear-gradient(-45deg,#bac6d6 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#bac6d6 75%),linear-gradient(-45deg,transparent 75%,#bac6d6 75%);background-size:26px 26px;background-position:0 0,0 13px,13px -13px,-13px 0}
+.preview strong{display:block;margin:8px 0;font-size:13px}
+#status{border-left:3px solid #5f9ac8;padding:9px 12px;background:#12243b;white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,monospace}
+.buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.buttons button{margin:8px 0 0}
+.note{background:#1a2432;border-left:2px solid #839bb6;padding:9px 12px}
+details summary{cursor:pointer;font-size:13px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-height:160px;overflow:auto}
+@media(max-width:1000px){main{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}}
+@media(max-width:580px){.grid{grid-template-columns:1fr}}
+</style></head><body>
+<header><h1>I-3D_web · BRIA RMBG 2.0</h1>
+<a href="./">Custom WebGPU lab</a>
+<a href="https://huggingface.co/kn4666/bria-rmbg-2.0-web" target="_blank" rel="noreferrer">Source model</a>
+<small>Noncommercial BRIA weights · Your browser GPU, not Colab GPU</small></header>
+<main>
+<section>
+<h2>Stage 0: Background removal</h2>
+<p>Run actual ONNX background segmentation with ONNX Runtime Web's WebGPU execution provider. Outputs are an alpha mask and transparent full-resolution PNG for the next I-3D stage.</p>
+<label for="photo">Input photograph</label>
+<input type="file" id="photo" accept="image/png,image/jpeg,image/webp">
+<label for="model">ONNX model</label>
+<select id="model">
+<option value="patched_fp16">Patched BRIA RMBG 2.0 FP16 (~513 MB, recommended)</option>
+<option value="kn4666_fp16">kn4666 BRIA FP16 (~514 MB, experimental)</option>
+<option value="kn4666_q4">kn4666 BRIA Q4 (~367 MB, experimental)</option>
+</select>
+<label for="maskMode">Mask interpretation</label>
+<select id="maskMode">
+<option value="model">Model default (patched = probability)</option>
+<option value="probability">Mask already 0–1</option>
+<option value="logit">Apply sigmoid to logits</option>
+<option value="auto">Heuristic (may be incorrect)</option>
+</select>
+<button id="generate">Load model and remove background</button>
+<p class="small">The input is normalized with ImageNet mean/std at 1024 × 1024. Only the original image and output mask/PNG travel into the I-3D workspace. Model weights are downloaded directly to your browser; they are not added to GitHub.</p>
+<div class="note"><p><strong>Licensing:</strong> RMBG 2.0 is distributed under CC BY-NC 4.0; commercial deployment requires BRIA permission. The default model is an independently patched export fixing WebGPU Split/Concat shader-binding limits. The model you linked is available as an alternative but its unmodified ONNX may fail on WebGPU.</p></div>
+<h2>Output actions</h2>
+<div class="buttons">
+<button id="downloadRGBA" class="secondary" disabled>Download RGBA</button>
+<button id="downloadMask" class="secondary" disabled>Download mask</button>
+</div>
+<button id="sendWorkspace" disabled>Save source + RGBA + mask into I-3D workspace</button>
+<p class="small">Workspace saving works when this page is served by I-3D's Colab viewer server. Standalone localhost uses the download buttons. After saving, the branch notebook can use the transparent PNG for geometry and the original source for painting.</p>
+<h2>Progress and diagnostics</h2><div id="status" role="status">Choose an image and click Run.</div>
+<details><summary>Model / inference metadata</summary><pre id="details">Not initialized.</pre></details>
+</section>
+<section>
+<h2>Result inspection</h2>
+<div class="grid">
+<div class="preview"><strong>Original image</strong><canvas id="original" width="256" height="256"></canvas></div>
+<div class="preview"><strong>Foreground alpha mask</strong><canvas id="mask" width="256" height="256"></canvas></div>
+<div class="preview"><strong>Transparent cutout</strong><canvas id="cutout" width="256" height="256"></canvas></div>
+</div>
+<p class="small">The previews scale to fit the page; downloaded and workspace PNGs preserve the original image dimensions. No mask is generated unless the real ONNX model produces output. Model inference/compatibility in this branch is not yet hardware-tested.</p>
+</section>
+</main>
+<script type="module" src="./rmbg-app.js"></script>
+</body></html>
