@@ -3,7 +3,7 @@ import {test} from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
-import {packSignedI4,unpackSignedI4,quantizeRowsI4,packTernary2,unpackTernary2,I3DWebGPU} from "../ops.js";
+import {packSignedI4,unpackSignedI4,quantizeRowsI4,I3DWebGPU} from "../ops.js";
 import {params32} from "../runtime.js";
 
 const here=path.dirname(fileURLToPath(import.meta.url));
@@ -16,16 +16,6 @@ test("signed Q4 packing roundtrip incl last partial word and negative weights",(
  assert.equal(packed.length,rows*Math.ceil(cols/8));
  assert.deepEqual(unpackSignedI4(packed,rows,cols),vals);
  assert.throws(()=>packSignedI4(Int8Array.from([8]),1,1),RangeError);
-});
-
-test("packed ternary 2-bit weights are lossless across row padding",()=>{
- const rows=2,cols=19;
- const original=Int8Array.from(Array.from({length:rows*cols},(_,i)=>(i%3)-1));
- const packed=packTernary2(original,rows,cols);
- assert.equal(packed.length,rows*Math.ceil(cols/16));
- assert.deepEqual(unpackTernary2(packed,rows,cols),original);
- assert.throws(()=>packTernary2(Int8Array.of(2),1,1),RangeError);
- assert.throws(()=>unpackTernary2(Uint32Array.of(3),1,1),RangeError);
 });
 
 test("I4 quantizer packs valid integers and returns per-row scales",()=>{
@@ -59,7 +49,7 @@ test("runtime checks malformed operator shapes before GPU allocations",async()=>
 
 test("all named shader files are present, no unbound imports",()=>{
  const kernels=["matmul","q4_matvec","softmax","layernorm","rmsnorm",
-   "silu","ternary_matvec","alpha_composite","depth_unproject","normal_from_points",
+   "silu","gguf_quant_matvec","alpha_composite","depth_unproject","normal_from_points",
    "skin_lbs","conv2d","grid_render"];
  for(const name of kernels){
   const source=fs.readFileSync(path.join(here,"..","kernels",name+".wgsl"),"utf8");
