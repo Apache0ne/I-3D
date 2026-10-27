@@ -58,6 +58,13 @@ def main():
     skeleton=load_skeleton_from_usd(get_asset_file('human','soma_base_skel_minimal_no_root.usd'),
                                    SOMA_SKELETON_PRIM_PATH)
     onnx=SOMA_N1_FP16_ONNX_PATH if a.precision=='fp16' else SOMA_N1_FP32_ONNX_PATH
+    if not onnx.is_file() or onnx.stat().st_size < 1024:
+        raise FileNotFoundError(f"Selected MotionBricks {a.precision} ONNX weights missing: {onnx}")
+    from motionbricks.model.soma.contract import SOMA_N1_CONTRACT
+    if list(SOMA_N1_CONTRACT.joint_names) != names:
+        raise ValueError("SOMA reference joint ordering differs from MotionBricks ONNX manifest")
+    if list(skeleton.joint_names) != names:
+        raise ValueError("Loaded NVIDIA USD skeleton joint ordering differs from I-3D reference")
     with MotionBricksSOMAEngine(onnx,model_to_runtime=wp.transform_identity()) as engine:
         context=engine.create_input(skeleton);target=engine.create_input(skeleton)
         result=engine.create_output(skeleton)
@@ -68,16 +75,26 @@ def main():
         engine.generate_animation(context,target,result)
         engine.synchronize()
         frames=int(result.num_frames)
-        motion=np.array(result.poses[:frames].numpy()).reshape(frames,30,7)
-        if not np.isfinite(motion).all():raise ValueError('Nonfinite generated motion')
+        if frames < 2:
+            raise ValueError(f"MotionBricks returned no usable animation frames: {frames}")
+        motion=np.asarray(result.poses[:frames].numpy(), dtype=np.float32).reshape(frames,30,7)
+        if not np.isfinite(motion).all():
+            raise ValueError('Nonfinite generated motion')
+        qnorm=np.linalg.norm(motion[:,:,3:7],axis=-1)
+        if np.max(np.abs(qnorm-1.0)) > .05:
+            raise ValueError('MotionBricks produced non-unit joint quaternions')
+        contacts=np.asarray(result.foot_contacts[:frames].numpy(),dtype=np.float32)
+        if contacts.shape != (frames,4) or not np.isfinite(contacts).all():
+            raise ValueError('Invalid MotionBricks foot contact output')
     # Root boundary check, not a claim of exact endpoint for every joint.
     start_error=float(np.linalg.norm(motion[0,0,:3]-inputs[0,0,:3]))
     target_error=float(np.linalg.norm(motion[-1,0,:3]-inputs[1,0,:3]))
     if start_error>.10 or target_error>.20:
         raise ValueError(f'Generated root endpoint discontinuity: start={start_error:.3f}m end={target_error:.3f}m')
     Path(a.output).parent.mkdir(parents=True,exist_ok=True)
-    np.savez_compressed(a.output,poses=motion,rate=np.int32(30),joint_names=np.array(names),
-                        bridge_info=str(Path(a.bridge)),start_error=start_error,target_error=target_error)
+    np.savez_compressed(a.output,poses=motion,foot_contacts=contacts,rate=np.int32(30),
+                        joint_names=np.array(names),bridge_info=str(Path(a.bridge)),
+                        precision=a.precision,start_error=start_error,target_error=target_error)
     print('MOTIONBRICKS_GENERATED',frames,'frames',frames/30,'sec',a.output)
 
 if __name__=='__main__':main()
