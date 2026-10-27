@@ -24,7 +24,7 @@ def chunk(kind, body):
 
 def png(width=2, height=2, rgba=(100, 200, 40, 255)):
     ihdr=struct.pack(">IIBBBBB",width,height,8,6,0,0,0)
-    row=b"\\x00" + bytes(rgba) * width
+    row=bytes((0,)) + bytes(rgba) * width
     # PNG rows are stored as raw bytes prefixed by filter 0.
     return (PNG_SIGNATURE + chunk(b"IHDR", ihdr)
             + chunk(b"IDAT",zlib.compress(row*height))
