@@ -1,10 +1,12 @@
 # I-3D — Single Image → 3D Character → Rig → Two Poses → MotionBricks Animation
 
+> **I-3D_web — isolated experimental WebGPU branch.** This is **not** `main`. New custom WGSL compute kernels, the WebGPU runtime, browser tests, and a GPU-resident depth/normal viewer are in [webgpu/](webgpu/README.md). The branch-specific [Colab launcher](https://colab.research.google.com/github/Apache0ne/I-3D/blob/I-3D_web/notebooks/I-3D_End_to_End_Colab.ipynb) clones `I-3D_web`. Existing full Hi3D/Paint/TokenRig/MotionBricks inference still uses CUDA/TensorRT: **full WebGPU model ports are not yet implemented**. Do not merge this branch into `main` without an explicit new request.
+
 **Research implementation, October 2026.** One canonical textured mesh is created and rigged once. The user edits *the same 3D character* in the embedded Colab 3D Studio; the saved poses are converted into Blender keyframes headlessly and MotionBricks synthesizes the transition. There is no second 3D reconstruction or requirement to retrain MotionBricks.
 
 ## Simple Colab launcher (recommended)
 
-**The notebook is only a launcher.** [Open I-3D in Google Colab](https://colab.research.google.com/github/Apache0ne/I-3D/blob/main/notebooks/I-3D_End_to_End_Colab.ipynb). It clones this repository, installs through the repository CLI, and calls the original model, rigging, MotionBricks and viewer scripts. No dependency lists or inference implementations live in notebook cells.
+**The notebook is only a launcher.** [Open I-3D in Google Colab](https://colab.research.google.com/github/Apache0ne/I-3D/blob/I-3D_web/notebooks/I-3D_End_to_End_Colab.ipynb). It clones this repository, installs through the repository CLI, and calls the original model, rigging, MotionBricks and viewer scripts. No dependency lists or inference implementations live in notebook cells.
 
 The same commands work in a Colab terminal after cloning:
 
@@ -22,11 +24,11 @@ All CUDA and Python setup is in `scripts/colab.py` and its helper scripts. Stage
 
 ## Google Colab notebook
 
-Open [I-3D_End_to_End_Colab.ipynb](notebooks/I-3D_End_to_End_Colab.ipynb) in [Google Colab](https://colab.research.google.com/github/Apache0ne/I-3D/blob/main/notebooks/I-3D_End_to_End_Colab.ipynb). It installs separate model environments, downloads the original external model assets, walks through geometry, paint, auto-rigging, SOMA bridge, two manually authored 3D poses, and MotionBricks inference/export. Use an NVIDIA GPU; heavier Hi3D modes may exceed Colab GPU memory. The notebook has not been executed or validated in Colab.
+Open [I-3D_End_to_End_Colab.ipynb](notebooks/I-3D_End_to_End_Colab.ipynb) in [Google Colab](https://colab.research.google.com/github/Apache0ne/I-3D/blob/I-3D_web/notebooks/I-3D_End_to_End_Colab.ipynb). It installs separate model environments, downloads the original external model assets, walks through geometry, paint, auto-rigging, SOMA bridge, two manually authored 3D poses, and MotionBricks inference/export. Use an NVIDIA GPU; heavier Hi3D modes may exceed Colab GPU memory. The notebook has not been executed or validated in Colab.
 
 ## Interactive 3D Studio — no Blender GUI needed
 
-The [Colab notebook](https://colab.research.google.com/github/Apache0ne/I-3D/blob/main/notebooks/I-3D_End_to_End_Colab.ipynb) opens the new [Three.js production viewer](viewer/index.html) directly in a large output cell using [viewer_server.py](scripts/viewer_server.py). It reads all five generated GLBs and supporting output artifacts from the same Colab workspace.
+The [Colab notebook](https://colab.research.google.com/github/Apache0ne/I-3D/blob/I-3D_web/notebooks/I-3D_End_to_End_Colab.ipynb) opens the new [Three.js production viewer](viewer/index.html) directly in a large output cell using [viewer_server.py](scripts/viewer_server.py). It reads all five generated GLBs and supporting output artifacts from the same Colab workspace.
 
 **Viewport features:** PBR lighting, editable exposure, multiple light presets, scene background, wireframe, normal/depth/albedo/clay/skin-weight views, skeleton overlay, joint labels, mesh inspector, joint picking, technical metadata, ground/grid/axes/bounds, image reference overlay, fullscreen, orbit/pan/zoom, front/side/top camera presets, side-by-side stage comparison and GLB downloads. For animated GLBs, the viewer has play/pause, clip selection, timeline seeking, single-frame stepping, speed controls and looping. It can save screenshots as PNG and record browser-rendered video as WebM.
 
