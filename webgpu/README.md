@@ -2,7 +2,7 @@
 
 > **Branch isolation:** Everything under `webgpu/`, the WebGPU-serving Colab viewer changes, and this document are on **`I-3D_web` only**. Do not merge or cherry-pick into `main` without a new explicit user request. This research branch is not the CUDA/Colab production baseline.
 
-The goal is to eventually execute I-3D's image → mesh → PBR texture → skeleton → pose → motion workflow using **browser-native WebGPU**, with original WGSL kernels, streamed model weights, quantization and a portable graph executor. The first implementation is a **working operator layer + WebGPU depth reconstruction viewer and numerical test harness**. It is *not* yet a browser inference port of Hi3D, Hunyuan Paint, TokenRig or MotionBricks.
+The goal is to eventually execute I-3D's image → mesh → PBR texture → skeleton → pose → motion workflow using **browser-native WebGPU**, with original WGSL kernels, streamed model weights, quantization and a portable graph executor. The first implementation is an **implemented but browser-unverified operator layer + WebGPU depth reconstruction viewer and numerical test harness**. It is *not* yet a browser inference port of Hi3D, Hunyuan Paint, TokenRig or MotionBricks.
 
 ## Launch in a browser
 
@@ -36,6 +36,22 @@ The Colab notebook from this branch is [here](../notebooks/I-3D_End_to_End_Colab
 | `skin_lbs.wgsl` | 4-influence linear blend skinning with column-major joint matrices | SOMA character animation |
 | `grid_render.wgsl` | Direct WebGPU triangle-list rasterization of GPU-resident depth points | Geometry preview |
 
+### Standards-based low-bit compatibility
+
+**GGUF is a file container, not one quantization technique.** Its tensor table records an individual GGML type for each matrix. The browser code now supports selective GGUF v3 tensor extraction and the real, packed, on-disk block encodings from upstream [ggml-common.h](https://github.com/ggml-org/llama.cpp/blob/master/ggml/src/ggml-common.h) and [ggml-quants.c](https://github.com/ggml-org/llama.cpp/blob/master/ggml/src/ggml-quants.c):
+
+| GGML type | Weights/block | Serialized bytes/block | Rate | Scale |
+|---|---:|---:|---:|---|
+| `Q2_0` (42) | 64 | 18 | 2.25 bpw | FP16 per block; codes -1/0/+1/+2 |
+| `MXFP4` (39) | 32 | 17 | 4.25 bpw | E8M0 power-of-two scale; packed E2M1 |
+| `NVFP4` (40) | 64 | 36 | 4.50 bpw | Four UE4M3 sub-block scales; packed E2M1 |
+
+`gguf-formats.js` reads the actual GGUF file header/tensor descriptors, reads a chosen weight tensor with **Blob.slice** rather than downloading the whole model into RAM, and preserves its bytes. `gguf_quant_matvec.wgsl` decodes those bytes directly on GPU into an accumulation without materializing a full FP32 weight matrix. The high-level test API reads its *output* back to compare with a separate CPU decoder. **No full GGUF model executor or checkpoint conversion has been implemented.**
+
+The previous in-house **nonstandard 2-bit ternary** encoding was removed. The remaining original Q4 toy operator is clearly marked as an experiment, not a recognized GGUF format. Standard `Q2_0` is most appropriate for weights that are already ternary/low-bit trained; blindly applying it to ordinary Hi3D/Paint dense FP16 tensors risks major quality loss. For non-ternary image/diffusion weights, `MXFP4` or `NVFP4` are more relevant starting formats but **they still require calibration and CUDA-vs-WebGPU accuracy tests**, and not all models have a GGUF exporter. Prism's separate `PQ2_0` / `PTQ1_0` are **not** yet implemented, and this code does not pretend to load them.
+
+Use the lab's **Inspect GGUF** and **Run real GGUF bytes through WebGPU** controls for a single compatible 2D matrix. The file remains local to the browser.
+
 `ops.js` validates CPU shapes/types and exposes typed operator calls. `runtime.js` provides WGSL shader compilation/error reporting, cached compute pipelines, GPU-resident buffers, dispatch, uniforms, readback, device limits and cleanup. **A future graph executor should use resident GPU buffers throughout**, instead of calling these high-level wrappers with host readback after every operator. This is essential for competitive performance.
 
 ### Real hardware testing and correctness
@@ -46,7 +62,7 @@ npm test
 # CPU-only JS shape checks, signed I4 pack/depack and uniform layout checks.
 ```
 
-The browser **Run custom WGSL correctness tests** button actually executes each compute pipeline on your browser's WebGPU GPU and compares its results to independent CPU references, then measures host-transfer-inclusive execution time. It checks irregular matmul sizes, Q4 signed nibble ordering, stable softmax, layernorm, RMSNorm, SiLU, alpha compositing, depth reprojection, normals and rigid/weighted skinning. **Those GPU checks have not been run by the assistant on a browser adapter.** Automated CI here validates JavaScript syntax and CPU-side contracts only.
+The browser **Run custom WGSL correctness tests** button actually executes each compute pipeline on your browser's WebGPU GPU and compares its results to independent CPU references, then measures host-transfer-inclusive execution time. It checks real GGUF Q2_0/MXFP4/NVFP4, irregular matmul sizes, experimental Q4 signed nibble ordering, stable softmax, layernorm, RMSNorm, SiLU, alpha compositing, depth reprojection, normals and rigid/weighted skinning. **Those GPU checks have not been run by the assistant on a browser adapter.** Automated CI here validates JavaScript syntax and CPU-side contracts only.
 
 `webgpu/package.json` has no runtime npm dependencies. To run the browser lab you only need a modern WebGPU browser and a localhost/HTTPS server.
 
