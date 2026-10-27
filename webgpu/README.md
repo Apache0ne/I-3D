@@ -19,13 +19,12 @@ Use HTTPS or localhost. Choose **Run custom WGSL correctness tests** for GPU-vs-
 
 The Colab notebook from this branch is [here](../notebooks/I-3D_End_to_End_Colab.ipynb). It clones **I-3D_web**, starts the original viewer server, and embeds `/webgpu/` as a browser WebGPU lab. The **WebGPU GPU is your desktop/browser GPU, not the remote Colab CUDA GPU**. Colab model stages remain their original isolated Python backends.
 
-## Original implemented WGSL operators
+## Implemented WGSL operators (and published GGUF quant tensor readers)
 
 | Kernel file | Contract | Main target |
 |---|---|---|
 | `matmul.wgsl` | `A[M,K] @ B[K,N]` tiled f32 | Attention, feed-forward, projections |
-| `q4_matvec.wgsl` | Signed 4-bit (two's complement), 8 weights/u32, per-row scales | Quantized model projections |
-| `ternary_matvec.wgsl` | Packed 2-bit ternary {-1,0,+1}, 16 weights/u32; **I-3D format, not GGUF** | Low-bit projections |
+| `q4_matvec.wgsl` | I-3D experimental signed INT4 packing, **not GGUF-compatible** | Test/reference only |\n| `gguf_quant_matvec.wgsl` | **Native GGUF Q2_0 / MXFP4 / NVFP4** byte/scale layouts from upstream GGML | Browser model-weight projections (supported 2D matrices) |
 | `softmax.wgsl` | Stable f32 row-wise softmax | Attention |
 | `layernorm.wgsl` | Normalization with gamma, beta, epsilon | Transformers |
 | `rmsnorm.wgsl` | Root-mean-square normalization | Transformer blocks |
