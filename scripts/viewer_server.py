@@ -181,6 +181,24 @@ def handler_for(work):
             url=urlparse(self.path).path
             if url in ("/","/index.html"):
                 return self.serve(HTML,head,content_type="text/html; charset=utf-8")
+            if url in ("/webgpu", "/webgpu/"):
+                return self.serve(ROOT/"webgpu"/"index.html",head,
+                                  content_type="text/html; charset=utf-8")
+            if url.startswith("/webgpu/"):
+                # Branch-only static WGSL/JS kernel lab. No parent traversal.
+                rel=unquote(url[len("/webgpu/"):])
+                if (not rel or "\\" in rel or
+                    any(part in ("", ".", "..") for part in rel.split("/"))):
+                    return self.respond({"error":"Invalid WebGPU asset path"},400)
+                candidate=(ROOT/"webgpu"/rel).resolve()
+                lab=(ROOT/"webgpu").resolve()
+                if lab not in candidate.parents or candidate.suffix.lower() not in (".js",".wgsl",".html",".css",".json"):
+                    return self.respond({"error":"Unallowed WebGPU asset"},403)
+                mime={".js":"text/javascript; charset=utf-8",
+                      ".wgsl":"text/plain; charset=utf-8",
+                      ".html":"text/html; charset=utf-8",
+                      ".json":"application/json; charset=utf-8"}.get(candidate.suffix.lower())
+                return self.serve(candidate,head,content_type=mime)
             if url=="/api/manifest":return self.respond(manifest(work))
             if url=="/api/poses":
                 file=work/"viewer_poses.json"
