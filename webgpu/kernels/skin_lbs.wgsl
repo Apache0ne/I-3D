@@ -25,6 +25,7 @@ fn main(@builtin(global_invocation_id) gid:vec3<u32>){
    );
    total=total+tp*weight;sum=sum+weight;
  }
- let q=select(p,total/max(sum,1e-12),sum>0.0);
+ var q=p;
+ if(sum>0.0){q=total/sum;}
  output[k]=q.x;output[k+1u]=q.y;output[k+2u]=q.z;output[k+3u]=q.w;
 }
