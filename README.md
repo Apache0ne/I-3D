@@ -4,6 +4,12 @@
 
 **Research implementation, October 2026.** One canonical textured mesh is created and rigged once. The user edits *the same 3D character* in the embedded Colab 3D Studio; the saved poses are converted into Blender keyframes headlessly and MotionBricks synthesizes the transition. There is no second 3D reconstruction or requirement to retrain MotionBricks.
 
+## I-3D_web stage 0: BRIA RMBG 2.0 ONNX browser matting
+
+The experimental WebGPU branch now has a standalone, real-model background-removal integration at [webgpu/rmbg.html](webgpu/rmbg.html), accessible from [the branch-specific Colab notebook](https://colab.research.google.com/github/Apache0ne/I-3D/blob/I-3D_web/notebooks/I-3D_End_to_End_Colab.ipynb) before installing CUDA models. It supports the user's [kn4666 BRIA RMBG 2.0 ONNX weights](https://huggingface.co/kn4666/bria-rmbg-2.0-web) as experimental variants, plus the [separately patched WebGPU FP16 export](https://huggingface.co/yamura4/RMBG-2.0-WebGPU) as the default. It downloads weights to the **local browser**, runs through **ONNX Runtime Web's WebGPU EP**, and produces original RGB, full-resolution transparent PNG and alpha-mask PNG.
+
+Files go directly to the Colab viewer workspace through a bounded PNG endpoint, and the branch's geometry command accepts `--cutout`, validates its source/alpha SHA256 manifest and uses it for Hi3D geometry while retaining the original image for PBR painting. No alpha-model weights are committed to GitHub. **CC BY-NC 4.0 applies** to the BRIA weights, so this stage is for noncommercial research absent a separate license. The WebGPU model graph is handled by ONNX Runtime, not yet by the custom I-3D WGSL graph executor. **The browser model has not been tested end to end on actual hardware**; CPU and syntax checks passed.
+
 ## Simple Colab launcher (recommended)
 
 **The notebook is only a launcher.** [Open I-3D in Google Colab](https://colab.research.google.com/github/Apache0ne/I-3D/blob/I-3D_web/notebooks/I-3D_End_to_End_Colab.ipynb). It clones this repository, installs through the repository CLI, and calls the original model, rigging, MotionBricks and viewer scripts. No dependency lists or inference implementations live in notebook cells.
