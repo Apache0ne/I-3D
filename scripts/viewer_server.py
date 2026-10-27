@@ -33,7 +33,7 @@ RMBG_FILES={
 }
 RMBG_MODELS={"patched_fp16","kn4666_fp16","kn4666_q4"}
 RMBG_MAX_BYTES=48*1024*1024
-PNG_SIGNATURE=b"\\x89PNG\\r\\n\\x1a\\n"
+PNG_SIGNATURE=bytes((137,80,78,71,13,10,26,10))
 
 
 def validate_rmbg_png(blob):
@@ -92,7 +92,7 @@ def save_rmbg_png(work,kind,blob,model):
                              for name,filename in RMBG_FILES.items()}}
         meta=work/"00_rmbg_metadata.json"
         temporary=meta.with_suffix(".json.tmp")
-        temporary.write_text(json.dumps(manifest,indent=2)+"\\n",encoding="utf-8")
+        temporary.write_text(json.dumps(manifest,indent=2)+chr(10),encoding="utf-8")
         os.replace(temporary,meta)
     return {"ok":True,"kind":kind,"file":file.name,"bytes":len(blob),
             "width":width,"height":height,"ready":(work/"00_rmbg_metadata.json").is_file()}
