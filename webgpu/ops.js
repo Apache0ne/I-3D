@@ -43,37 +43,6 @@ export function unpackSignedI4(packed,rows,cols) {
   return result;
 }
 
-/** Standalone ternary 2-bit pack (0=0,1=+1,2=-1; 3 disallowed).
- * This is NOT Prism ML's GGUF PQ2_0/PTQ1_0 wire format.
- */
-export function packTernary2(weights,rows,cols) {
-  dimensions(rows,cols);
-  if(!(weights instanceof Int8Array)||weights.length!==rows*cols)
-    throw new TypeError("Ternary weights must be Int8Array");
-  const rowWords=Math.ceil(cols/16);
-  const result=new Uint32Array(rows*rowWords);
-  for(let row=0;row<rows;row++)for(let k=0;k<cols;k++){
-    const w=weights[row*cols+k];
-    if(w!==-1&&w!==0&&w!==1)throw new RangeError("Ternary weights must be -1, 0 or +1");
-    const code=w===-1?2:w===1?1:0;
-    result[row*rowWords+Math.floor(k/16)] |= code<<((k%16)*2);
-  }
-  return result;
-}
-
-export function unpackTernary2(packed,rows,cols) {
-  dimensions(rows,cols);
-  const rowWords=Math.ceil(cols/16);
-  check(packed,rows*rowWords,"packed",Uint32Array);
-  const out=new Int8Array(rows*cols);
-  for(let row=0;row<rows;row++)for(let k=0;k<cols;k++){
-    const code=(packed[row*rowWords+Math.floor(k/16)]>>>((k%16)*2))&3;
-    if(code===3)throw new RangeError("Invalid ternary code 3");
-    out[row*cols+k]=code===2?-1:code;
-  }
-  return out;
-}
-
 /** Optional per-row int4 quantization from f32 weights.
  * Quantization changes model predictions; calibrate real weights before use.
  */
@@ -151,16 +120,6 @@ export class I3DWebGPU {
     const packed=rawBytesToU32(raw);
     return this._run("gguf_quant_matvec",[packed,vector],
       params32(["u32","u32","u32","u32"],[rows,cols,ggmlType,0]),
-      rows,groups(rows,64));
-  }
-
-  async ternaryMatvec(packed,vector,scales,rows,cols) {
-    dimensions(rows,cols);
-    const words=Math.ceil(cols/16);
-    check(packed,rows*words,"packed",Uint32Array);
-    check(vector,cols,"vector");check(scales,rows,"scales");
-    return this._run("ternary_matvec",[packed,vector,scales],
-      params32(["u32","u32","u32","u32"],[rows,cols,words,0]),
       rows,groups(rows,64));
   }
 
