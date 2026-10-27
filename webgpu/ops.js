@@ -1,4 +1,5 @@
 import { WebGPURuntime, params32 } from "./runtime.js";
+import {BLOCKS,expectedQuantBytes,rawBytesToU32} from "./gguf-formats.js";
 
 /** Array shape & type guards keep malformed model tensors off the GPU. */
 function check(input,length,label,type=Float32Array) {
@@ -126,6 +127,30 @@ export class I3DWebGPU {
     check(vector,cols,"vector");check(scales,rows,"scales");
     return this._run("q4_matvec",[packed,vector,scales],
       params32(["u32","u32","u32","u32"],[rows,cols,rowWords,0]),
+      rows,groups(rows,64));
+  }
+
+  /**
+   * Consume an actual on-disk GGUF quant tensor without changing quantization:
+   * - Q2_0 GGML type 42, 64-element blocks / 18 bytes
+   * - MXFP4 type 39, 32-element blocks / 17 bytes
+   * - NVFP4 type 40, 64-element blocks / 36 bytes
+   *
+   * The Uint8Array contains the EXACT GGUF tensor payload. It is only padded
+   * to u32 storage alignment; WGSL decodes the original byte/scale layout.
+   * High-level readback is for testing. Future graph executor must preserve
+   * resident weights and activations across layers.
+   */
+  async ggufQuantMatvec(raw,vector,rows,cols,ggmlType) {
+    if(!(raw instanceof Uint8Array))throw new TypeError("GGUF payload must be Uint8Array");
+    dimensions(rows,cols);
+    if(!BLOCKS[ggmlType])throw new Error("Unsupported GGML quantization type "+ggmlType);
+    const expected=expectedQuantBytes(ggmlType,rows,cols);
+    if(raw.length!==expected)throw new RangeError("GGUF quant tensor byte length: expected "+expected+", got "+raw.length);
+    check(vector,cols,"input activations");
+    const packed=rawBytesToU32(raw);
+    return this._run("gguf_quant_matvec",[packed,vector],
+      params32(["u32","u32","u32","u32"],[rows,cols,ggmlType,0]),
       rows,groups(rows,64));
   }
 
