@@ -36,9 +36,7 @@ class ViewerManifestTests(unittest.TestCase):
             write_minimal_glb(geometry)
             m = manifest(work)
             self.assertTrue(m["stages"][0]["available"])
-            self.assertEqual(m["stages"][0]["asset"]["filename"] if
-                             "filename" in m["stages"][0]["asset"] else
-                             m["stages"][0]["asset"]["name"], geometry.name)
+            self.assertEqual(m["stages"][0]["asset"]["name"], geometry.name)
 
             geometry.write_bytes(b"glTF")
             m = manifest(work)
