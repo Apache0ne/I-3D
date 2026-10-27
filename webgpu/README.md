@@ -2,7 +2,33 @@
 
 > **Branch isolation:** Everything under `webgpu/`, the WebGPU-serving Colab viewer changes, and this document are on **`I-3D_web` only**. Do not merge or cherry-pick into `main` without a new explicit user request. This research branch is not the CUDA/Colab production baseline.
 
-The goal is to eventually execute I-3D's image → mesh → PBR texture → skeleton → pose → motion workflow using **browser-native WebGPU**, with original WGSL kernels, streamed model weights, quantization and a portable graph executor. The first implementation is an **implemented but browser-unverified operator layer + WebGPU depth reconstruction viewer and numerical test harness**. It is *not* yet a browser inference port of Hi3D, Hunyuan Paint, TokenRig or MotionBricks.
+The goal is to eventually execute I-3D's image → mesh → PBR texture → skeleton → pose → motion workflow using **browser-native WebGPU**, with original WGSL kernels, streamed model weights, quantization and a portable graph executor. The first pretrained-model integration is **BRIA RMBG 2.0 image matting**, using a published ONNX graph through ONNX Runtime Web's WebGPU backend rather than falsely claiming a hand-written WGSL port of every BiRefNet operator. The first implementation is an **implemented but browser-unverified operator layer + WebGPU depth reconstruction viewer and numerical test harness**. It is *not* yet a browser inference port of Hi3D, Hunyuan Paint, TokenRig or MotionBricks.
+
+## Stage 0 — BRIA RMBG 2.0 background removal (browser)
+
+This branch integrates an actual [BRIA RMBG 2.0](https://huggingface.co/kn4666/bria-rmbg-2.0-web) ONNX image segmentation model for one stage of I-3D. It does **not** yet prove WebGPU inference succeeded on the user's browser; the committed JavaScript/HTTP source contracts pass automated checks, while actual inference must be verified on a compatible WebGPU browser.
+
+**Launch the stage:** [`webgpu/rmbg.html`](rmbg.html). From a clone of this branch, run `python3 -m http.server 8000` in the project root and visit `http://localhost:8000/webgpu/rmbg.html`. Within the I-3D_web Colab notebook, the same interface is served at `/webgpu/rmbg.html` through the existing 3D Studio server.
+
+| Preset | Weight source | Weights | Expected compatibility |
+|---|---|---:|---|
+| **Default: WebGPU-patched FP16** | [yamura4/RMBG-2.0-WebGPU](https://huggingface.co/yamura4/RMBG-2.0-WebGPU) | ~513 MB | Cascaded Split/Concat bindings for browser WebGPU; runtime still needs actual testing |
+| kn4666 FP16 | [kn4666/bria-rmbg-2.0-web](https://huggingface.co/kn4666/bria-rmbg-2.0-web) | ~514 MB | Original ONNX, **experimental**; can exceed WebGPU binding limits |
+| kn4666 Q4 | Same kn4666 repository | ~367 MB | **Experimental**; browser GPU kernel/operator support not confirmed |
+
+Processing: original image → 1024 × 1024 RGB → float32 NCHW tensor normalized using ImageNet mean/std → real ONNX inference on the browser's WebGPU adapter → 1024 × 1024 alpha → bilinear upsample to original image dimensions → two image exports: 8-bit alpha-mask PNG and straight-alpha transparent PNG. Alpha interpretation for the patched ONNX model uses its documented `alphas` probability output, without applying a second sigmoid. For other ONNX exports, the user can explicitly select probability or logit output handling.
+
+When served through `scripts/viewer_server.py`, **Save source + RGBA + mask into I-3D workspace** writes:
+- `outputs/character/00_source_input.png` — original input image, preserved as RGBA/RGB
+- `outputs/character/00_alpha_mask.png` — 8-bit alpha-mask PNG
+- `outputs/character/00_background_removed.png` — full-resolution foreground RGBA PNG
+- `outputs/character/00_rmbg_metadata.json` — BRIA variant, dimensions and per-file SHA256
+
+`scripts/colab.py prepare --image outputs/character/00_source_input.png --cutout outputs/character/00_background_removed.png` validates the SHA256 metadata and sends the **RGBA image to Hi3D geometry without running a second background remover**. The original RGB source continues to Hunyuan Paint for PBR texture generation. A mismatched source or missing metadata fails loudly instead of silently reusing a stale alpha mask. In the branch notebook this cutout option is selected when the three workspace artifacts exist.
+
+**Licensing:** Both model versions are derived from [briaai/RMBG-2.0](https://huggingface.co/briaai/RMBG-2.0) and use **CC BY-NC 4.0**. These noncommercial restrictions apply independently from the I-3D implementation. No BRIA checkpoint is checked into our GitHub branch. The pinned dependency for this stage is **ONNX Runtime Web 1.31.1** loaded from jsDelivr; this is an external dependency, not a custom I-3D kernel. It has no silent WASM/CPU fallback.
+
+**Known limits:** the model download is large, a WebGPU-capable browser is required, CORS/CDN access must work, and WebGPU operators may fail on some devices. Shader-binding problems are the specific reason for using the independently patched model. GPU speed and visual alpha quality have not been measured by I-3D.
 
 ## Launch in a browser
 
