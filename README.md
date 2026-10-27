@@ -2,6 +2,24 @@
 
 **Research implementation, October 2026.** One canonical textured mesh is created and rigged once. The user edits *the same 3D character* at two Blender frames; MotionBricks synthesizes the transition. There is no 2D pose editor, no duplicate mesh reconstruction, and no requirement to retrain MotionBricks.
 
+## Simple Colab launcher (recommended)
+
+**The notebook is only a launcher.** [Open I-3D in Google Colab](https://colab.research.google.com/github/Apache0ne/I-3D/blob/main/notebooks/I-3D_End_to_End_Colab.ipynb). It clones this repository, installs through the repository CLI, and calls the original model, rigging, MotionBricks and viewer scripts. No dependency lists or inference implementations live in notebook cells.
+
+The same commands work in a Colab terminal after cloning:
+
+```bash
+git clone https://github.com/Apache0ne/I-3D.git
+cd I-3D
+python scripts/colab.py setup --stage all --precision fp16
+python scripts/colab.py prepare --image /content/person.png --forward +X --resolution 512
+# Open the notebook's embedded 3D Studio, save START and TARGET poses.
+python scripts/colab.py animate --precision fp16
+python scripts/colab.py pack
+```
+
+All CUDA and Python setup is in `scripts/colab.py` and its helper scripts. Stages are restartable: `setup --stage hi3d`, `paint`, `tokenrig` or `motion` installs only a selected environment; `prepare` keeps already-created GLB outputs unless `--force` is provided. Subprocess errors are emitted directly. All stages are **real model operations**, not placeholders, and remain dependent on weights, GPUs and upstream licenses. The external CUDA-13 adaptations and TensorRT engine are **not yet validated end to end**. Blender executes headlessly for rigging and GLB export; it does not require opening Blender's interface.
+
 ## Google Colab notebook
 
 Open [I-3D_End_to_End_Colab.ipynb](notebooks/I-3D_End_to_End_Colab.ipynb) in [Google Colab](https://colab.research.google.com/github/Apache0ne/I-3D/blob/main/notebooks/I-3D_End_to_End_Colab.ipynb). It installs separate model environments, downloads the original external model assets, walks through geometry, paint, auto-rigging, SOMA bridge, two manually authored 3D poses, and MotionBricks inference/export. Use an NVIDIA GPU; heavier Hi3D modes may exceed Colab GPU memory. The notebook has not been executed or validated in Colab.
