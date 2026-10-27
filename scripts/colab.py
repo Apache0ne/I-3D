@@ -205,6 +205,28 @@ def command_prepare(a):
     work = Path(a.output).resolve()
     work.mkdir(parents=True, exist_ok=True)
     image_hash = sha256(image)
+    # BRIA RMBG2 WebGPU browser stage is optional. Never select an old
+    # cutout without checking the source-image hash and completed manifest.
+    geometry_image = image
+    bria_metadata = None
+    if a.cutout is not None:
+        cutout = require(Path(a.cutout).resolve())
+        metadata = work / "00_rmbg_metadata.json"
+        if not metadata.is_file():
+            raise ValueError("Browser cutout requires 00_rmbg_metadata.json: run the I-3D_web RMBG browser stage")
+        bria_metadata = json.loads(metadata.read_text(encoding="utf-8"))
+        if bria_metadata.get("version") != 1:
+            raise ValueError("Unsupported BRIA metadata version")
+        names = {"source":"00_source_input.png","mask":"00_alpha_mask.png",
+                 "cutout":"00_background_removed.png"}
+        if image != (work / names["source"]).resolve() or cutout != (work / names["cutout"]).resolve():
+            raise ValueError("Original and cutout paths must be the same workspace pair")
+        for key,filename in names.items():
+            asset = require(work / filename)
+            if sha256(asset) != bria_metadata.get("sha256",{}).get(key):
+                raise ValueError(f"Browser RMBG {key} artifact does not match completed manifest")
+        geometry_image = cutout
+    geometry_image_hash = sha256(geometry_image)
     geometry = work / "01_geometry.glb"
     texture = work / "02_textured.glb"
     rigged = work / "03_tokenrig.glb"
@@ -214,21 +236,28 @@ def command_prepare(a):
 
     geometry_params = {
         "input_sha256": image_hash,
+        "geometry_image_sha256": geometry_image_hash,
+        "background_model": bria_metadata.get("model") if bria_metadata else "Hi3D internal rembg",
         "model": "hi3d-official/Hi3Dv1.0",
         "coarse_model": "tencent/Hunyuan3D-2mini",
         "resolution": a.resolution,
         "steps": a.steps,
-        "background_removal": True,
+        "background_removal": bria_metadata is None,
         "hi3d_entrypoint_sha256": sha256(ROOT / "vendor" / "Hi3Dv1.0" / "demo" / "image_to_mesh.py"),
     }
     if _needs_generation(geometry, geometry_params, a.force):
-        call(py("hi3d"), "demo/image_to_mesh.py",
-             "--image", image, "--output", geometry,
-             "--model", "hi3d-official/Hi3Dv1.0",
-             "--resolution", a.resolution,
-             "--num-inference-steps", a.steps,
-             "--remove-background",
-             cwd=ROOT / "vendor" / "Hi3Dv1.0")
+        command = [
+            py("hi3d"), "demo/image_to_mesh.py",
+            "--image", geometry_image, "--output", geometry,
+            "--model", "hi3d-official/Hi3Dv1.0",
+            "--resolution", a.resolution,
+            "--num-inference-steps", a.steps,
+        ]
+        if bria_metadata is None:
+            command.append("--remove-background")
+        # Browser BRIA provided premultiplied? No: PNG has straight-alpha
+        # foreground color and an unmodified source used for PBR painting.
+        call(*command, cwd=ROOT / "vendor" / "Hi3Dv1.0")
         write_stamp(geometry, geometry_params)
     validate_glb(geometry)
 
@@ -367,6 +396,8 @@ def cli():
     s.add_argument("--precision", choices=["fp16", "fp32"], default="fp16")
     prep = sub.add_parser("prepare", help="Generate the same textured and SOMA-rigged human")
     prep.add_argument("--image", required=True)
+    prep.add_argument("--cutout", type=Path,
+                      help="Verified RGBA PNG from I-3D_web browser BRIA stage; source --image stays original for Paint")
     prep.add_argument("--output", default=str(WORK_DEFAULT))
     prep.add_argument("--forward", choices=["+X", "-X", "+Y", "-Y"], default="+X")
     prep.add_argument("--resolution", type=int, choices=[512, 1024, 1536], default=512)
