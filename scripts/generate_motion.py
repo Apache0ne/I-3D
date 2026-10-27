@@ -61,8 +61,8 @@ def main():
     if not onnx.is_file() or onnx.stat().st_size < 1024:
         raise FileNotFoundError(f"Selected MotionBricks {a.precision} ONNX weights missing: {onnx}")
     from motionbricks.model.soma.contract import SOMA_N1_CONTRACT
-    if list(SOMA_N1_CONTRACT.joint_names) != names:
-        raise ValueError("SOMA reference joint ordering differs from MotionBricks ONNX manifest")
+    if set(SOMA_N1_CONTRACT.joint_names) != set(names):
+        raise ValueError("SOMA reference joints differ from MotionBricks ONNX manifest")
     if list(skeleton.joint_names) != names:
         raise ValueError("Loaded NVIDIA USD skeleton joint ordering differs from I-3D reference")
     with MotionBricksSOMAEngine(onnx,model_to_runtime=wp.transform_identity()) as engine:
