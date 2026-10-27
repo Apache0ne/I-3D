@@ -13,5 +13,11 @@ jobs:
           python-version: '3.11'
       - name: Compile all I-3D scripts (catch installer syntax errors)
         run: python -m compileall -q scripts i3d
+      - name: Check Colab CLI parsing without GPUs or weights
+        run: |
+          python scripts/colab.py --help
+          python scripts/colab.py setup --help
+          python scripts/colab.py prepare --help
+          python scripts/colab.py animate --help
       - run: pip install numpy
       - run: python -m unittest discover -s tests -v
