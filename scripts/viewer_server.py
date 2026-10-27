@@ -11,6 +11,9 @@ from urllib.parse import urlparse, unquote
 import argparse, json, os, mimetypes, re, math
 
 ROOT=Path(__file__).resolve().parents[1]
+import sys
+sys.path.insert(0, str(ROOT))
+from i3d.artifacts import validate_glb
 HTML=ROOT/"viewer"/"index.html"
 EXT={".glb",".gltf",".bin",".png",".jpg",".jpeg",".webp",".hdr",".exr",".json",
      ".blend",".npz",".obj",".usda",".usd",".mp4"}
@@ -36,14 +39,27 @@ def info(path):
                 mtime=s.st_mtime,modified=datetime.fromtimestamp(s.st_mtime,timezone.utc).isoformat(),
                 extension=path.suffix.lower())
 
+def _ready_asset(path):
+    """A generated model is not ready merely because a file appeared."""
+    if not path.is_file() or path.stat().st_size == 0:
+        return False
+    if path.suffix.lower() == ".glb":
+        try:
+            validate_glb(path)
+        except (OSError, ValueError, TypeError):
+            return False
+    return True
+
+
 def manifest(work):
-    assets=sorted([info(p) for p in work.iterdir() if p.is_file() and not p.name.startswith(".")
+    assets=sorted([info(p) for p in work.iterdir() if _ready_asset(p) and not p.name.startswith(".")
                    and p.suffix.lower() in EXT],key=lambda item:item["name"])
     stages=[]
     for id,filename,label in STAGES:
         p=work/filename
+        ready=_ready_asset(p)
         stages.append(dict(id=id,name=label,filename=filename,
-                           available=p.is_file(),asset=info(p) if p.is_file() else None))
+                           available=ready,asset=info(p) if ready else None))
     reference=work/"soma_reference.json"
     names=[]
     if reference.exists():
