@@ -152,6 +152,18 @@ export class I3DWebGPU {
       points.length,groups(width*height,256));
   }
 
+  async conv2dNHWC(image,filter,bias,width,height,cin,cout,kh,kw) {
+    dimensions(width,height,cin,cout,kh,kw);
+    check(image,width*height*cin,"image");
+    check(filter,kh*kw*cin*cout,"filter");
+    check(bias,cout,"bias");
+    const outputLength=width*height*cout;
+    return this._run("conv2d",[image,filter,bias],
+      params32(["u32","u32","u32","u32","u32","u32","u32","u32"],
+        [width,height,cin,cout,kh,kw,Math.floor(kh/2),Math.floor(kw/2)]),
+      outputLength,groups(outputLength,128));
+  }
+
   async skinLBS(positions,jointIDs,weights,matrices,vertices,joints) {
     dimensions(vertices,joints);check(positions,vertices*4,"positions");
     check(jointIDs,vertices*4,"jointIDs",Uint32Array);
