@@ -63,6 +63,17 @@ a{color:#8fc6ff}
 </section>
 <section>
 <div class="panel">
+<h2>Native GGUF quantized weight runner</h2>
+<p>Read an existing <strong>GGUF v3</strong> model file locally, inspect its real tensor table, select a supported <strong>Q2_0, MXFP4, or NVFP4</strong> weight matrix, and multiply it by a deterministic test activation using <em>original file bytes</em>. This tests format-accurate execution, not full-model inference.</p>
+<input id="ggufFile" type="file" accept=".gguf,application/octet-stream">
+<div class="actions" style="margin-top:10px"><button id="inspectGGUF">Inspect GGUF</button></div>
+<label style="display:block">Compatible matrix tensor
+<select id="ggufTensor" style="width:100%;padding:8px;background:#0b1621;color:#e9f4ff;border:1px solid #395268;border-radius:5px"><option value="">Inspect a GGUF file first</option></select></label>
+<div class="actions"><button id="runGGUF">Run real GGUF bytes through WebGPU</button></div>
+<p class="small">Tensor must fit the browser's WebGPU storage-buffer size. Current engine supports only 2D matrices and runs one matrix-vector projection. File stays local: no upload to Colab or external service.</p>
+<pre id="ggufInfo">No file selected.</pre>
+</div>
+<div class="panel">
 <h2>On-device correctness suite</h2>
 <p>Each operator runs on your actual WebGPU adapter and is checked numerically against an independent CPU implementation. No TensorRT, CUDA or Python dependency. The microbenchmark reports end-to-end <em>host transfer + GPU + readback</em> time, not pure shader duration.</p>
 <button id="runTests">Run custom WGSL correctness tests</button>
