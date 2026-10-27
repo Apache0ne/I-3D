@@ -1,6 +1,7 @@
 import {I3DWebGPU} from "./ops.js";
 import {runBrowserSuite} from "./browser-tests.js";
 import {params32} from "./runtime.js";
+import {inspectGGUF,loadQuantizedGGUFTensor,BLOCKS,referenceQuantMatvec} from "./gguf-formats.js";
 
 const $=id=>document.getElementById(id);
 const log=(message)=>{const pre=$("log");pre.textContent+=String(message)+"\n";pre.scrollTop=pre.scrollHeight;};
@@ -169,6 +170,67 @@ function guardButton(id,fn){
   finally{$(id).disabled=false;}
  });
 }
+let ggufHeader=null;
+guardButton("inspectGGUF",async()=>{
+ const file=$("ggufFile").files?.[0];
+ if(!file)throw new Error("Select an existing GGUF v3 file first");
+ const header=await inspectGGUF(file);
+ ggufHeader=header;
+ const compatible=header.tensors.filter(t=>
+    t.dims.length===2 && BLOCKS[t.type] &&
+    t.dims[0]%BLOCKS[t.type].elements===0 &&
+    t.dims[0]>0&&t.dims[1]>0
+ );
+ const sel=$("ggufTensor");
+ sel.replaceChildren();
+ for(const t of compatible){
+  const op=document.createElement("option");
+  op.value=t.name;
+  op.textContent=t.name+" — "+BLOCKS[t.type].name+
+      " ["+t.dims[0]+","+t.dims[1]+"]";
+  sel.append(op);
+ }
+ $("ggufInfo").textContent=JSON.stringify({
+   version:header.version,tensors:header.tensors.length,
+   supportedMatrices:compatible.length,
+   supportedFormats:["Q2_0","MXFP4","NVFP4"],
+   inputBytes:file.size
+ },null,2);
+ status("Parsed GGUF v3 metadata; "+compatible.length+" compatible 2D tensors.");
+});
+
+guardButton("runGGUF",async()=>{
+ const file=$("ggufFile").files?.[0];
+ const name=$("ggufTensor").value;
+ if(!file||!ggufHeader||!name)throw new Error("Inspect GGUF and select one compatible tensor");
+ if(file.size!==ggufHeader.fileSize)throw new Error("GGUF selection changed; inspect again");
+ const {bytes,rows,cols,type}=await loadQuantizedGGUFTensor(file,ggufHeader,name,
+    {maxTensorBytes:128*1024*1024});
+ const api=await ensureEngine();
+ const input=new Float32Array(cols);
+ for(let k=0;k<cols;k++)input[k]=Math.sin(k*.187)*.5+Math.cos(k*.037)*.125;
+ const gpuStart=performance.now();
+ const out=await api.ggufQuantMatvec(bytes,input,rows,cols,type);
+ const elapsedMs=performance.now()-gpuStart;
+ const cpu=referenceQuantMatvec(bytes,type,rows,cols,input);
+ let maxAbsoluteError=0,maxRelativeError=0;
+ for(let i=0;i<out.length;i++){
+  const error=Math.abs(out[i]-cpu[i]);
+  if(!Number.isFinite(out[i]))throw new Error("GPU produced nonfinite output at row "+i);
+  maxAbsoluteError=Math.max(maxAbsoluteError,error);
+  maxRelativeError=Math.max(maxRelativeError,error/Math.max(1e-3,Math.abs(cpu[i])));
+ }
+ const result={
+  format:BLOCKS[type].name,ggmlType:type,originalTensor:name,
+  matrixShape:[rows,cols],ggufQuantizedBytes:bytes.byteLength,
+  gpuProjectionMilliseconds:+elapsedMs.toFixed(3),
+  maxAbsoluteError,maxRelativeError,
+  outputPreview:[...out.slice(0,12)],
+  validation:"CPU GGML block-layout decoder vs WebGPU kernel; not full AI model inference"
+ };
+ $("ggufInfo").textContent=JSON.stringify(result,null,2);
+ status("GGUF "+BLOCKS[type].name+" matrix projection executed by WebGPU");
+});
 guardButton("runTests",async()=>{
  await ensureEngine();
  $("log").textContent="";
