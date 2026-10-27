@@ -22,6 +22,9 @@ import subprocess
 import sys
 import zipfile
 
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
 from i3d.artifacts import (
     cache_valid,
     sha256,
@@ -30,10 +33,6 @@ from i3d.artifacts import (
     required_binary_asset,
 )
 
-ROOT = Path(__file__).resolve().parents[1]
-# python /content/I-3D/scripts/colab.py starts with scripts/ on sys.path,
-# not the repository root; expose our shared CPU contract helpers explicitly.
-sys.path.insert(0, str(ROOT))
 ENV_ROOT = Path(os.getenv("I3D_ENV_ROOT", "/content/i3d_envs"))
 WORK_DEFAULT = ROOT / "outputs" / "character"
 WHEEL_URL = (
