@@ -1,6 +1,6 @@
 # I-3D — Single Image → 3D Character → Rig → Two Poses → MotionBricks Animation
 
-**Research implementation, October 2026.** One canonical textured mesh is created and rigged once. The user edits *the same 3D character* at two Blender frames; MotionBricks synthesizes the transition. There is no 2D pose editor, no duplicate mesh reconstruction, and no requirement to retrain MotionBricks.
+**Research implementation, October 2026.** One canonical textured mesh is created and rigged once. The user edits *the same 3D character* in the embedded Colab 3D Studio; the saved poses are converted into Blender keyframes headlessly and MotionBricks synthesizes the transition. There is no second 3D reconstruction or requirement to retrain MotionBricks.
 
 ## Simple Colab launcher (recommended)
 
@@ -18,7 +18,7 @@ python scripts/colab.py animate --precision fp16
 python scripts/colab.py pack
 ```
 
-All CUDA and Python setup is in `scripts/colab.py` and its helper scripts. Stages are restartable: `setup --stage hi3d`, `paint`, `tokenrig` or `motion` installs only a selected environment; `prepare` keeps already-created GLB outputs unless `--force` is provided. Subprocess errors are emitted directly. All stages are **real model operations**, not placeholders, and remain dependent on weights, GPUs and upstream licenses. The external CUDA-13 adaptations and TensorRT engine are **not yet validated end to end**. Blender executes headlessly for rigging and GLB export; it does not require opening Blender's interface.
+All CUDA and Python setup is in `scripts/colab.py` and its helper scripts. Stages are restartable: `setup --stage hi3d`, `paint`, `tokenrig` or `motion` installs only a selected environment. `prepare` reuses only valid GLBs with matching content hashes, model settings and stage source code; changing the image or options automatically invalidates downstream outputs. `--force` regenerates the stages. Subprocess errors are emitted directly. All stages are **real model operations**, not placeholders, and remain dependent on weights, GPUs and upstream licenses. The external CUDA-13 adaptations and TensorRT engine are **not yet validated end to end**. Blender executes headlessly for rigging and GLB export; it does not require opening Blender's interface.
 
 ## Google Colab notebook
 
@@ -44,7 +44,7 @@ The [Colab notebook](https://colab.research.google.com/github/Apache0ne/I-3D/blo
 | 4. UV/PBR textures | Hunyuan3D-Paint 2.1 | Textured GLB |
 | 5. Auto-rigging | TokenRig / SkinTokens | Skinned GLB with predicted skeleton |
 | 6. SOMA bridge **(original I-3D code)** | Actual NVIDIA SOMA reference USD + bone/weight remapping | SOMA 30-joint skinned GLB |
-| 7. Author start/target | Blender poses keyframed at frames 1 and 2 | `poses.json` |
+| 7. Author start/target | 3D Studio edits, converted to Blender keyframes headlessly | `viewer_poses.json` + `05_poses.json` |
 | 8. Generate motion | MotionBricks-SOMA-RP-v1, FP32/mixed FP16 ONNX | 30 FPS joint transforms NPZ |
 | 9. Animate/export | Blender rest/pose transforms and glTF | Animated, textured GLB + editable `.blend` |
 
@@ -73,7 +73,9 @@ CUDA 13 SpConv/cumm wheels are sourced from [fafraob/spconv-wheels](https://gith
 
 MotionBricks Git LFS assets can be hydrated with `python scripts/hydrate_motionbricks.py --precision fp32`. This retrieves the original 30-joint reference USD and ONNX graph without committing weights to I-3D. Other model weights must be downloaded under their upstream terms. Hi3D's pipeline requires the coarse Hunyuan3D-2mini dependencies installed per the upstream Hi3D documentation. For Hunyuan3D-Paint, download the RealESRGAN checkpoint according to its README.
 
-## Run
+## Optional legacy manual-Blender workflow
+
+The primary Colab workflow above does **not** require opening Blender. The older `scripts/pipeline.py` remains available when manually authored desktop Blender poses are preferred.
 
 ```bash
 # Stage 1 — 2D image -> textured mesh -> rigged character -> SOMA bridge
@@ -103,7 +105,7 @@ pip install numpy
 python -m unittest discover -s tests -v
 ```
 
-These CPU tests cover: SOMA Y-up → Blender Z-up basis, positive determinants, non-mirrored left/right anatomy, non-reflective pose fitting, local/world forward kinematics, world-to-local conversion and quaternion rotation round-trips. Actual GPU end-to-end testing needs the licensed model weights, Blender and an NVIDIA GPU and has **not** been completed by this repository's CPU tests.
+These CPU tests cover: SOMA Y-up → Blender Z-up basis, positive determinants, non-mirrored left/right anatomy, non-reflective pose fitting, local/world forward kinematics, world-to-local conversion, quaternion round-trips, binary GLB validation, cache invalidation, a mocked Hunyuan Paint OBJ→GLB contract, and synthetic 30-joint MotionBricks input tensors. GitHub Actions also compiles the Python sources and smoke-tests the Colab CLI. Actual GPU end-to-end testing needs the licensed model weights, Blender and an NVIDIA GPU and has **not** been completed by this repository's CPU tests.
 
 ## Licenses and citations
 
