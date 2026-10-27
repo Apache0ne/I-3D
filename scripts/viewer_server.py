@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from datetime import datetime, timezone
 from urllib.parse import urlparse, unquote
-import argparse, json, os, mimetypes, re, math
+import argparse, json, os, mimetypes, re, math, hashlib, struct, zlib
 
 ROOT=Path(__file__).resolve().parents[1]
 import sys
@@ -24,6 +24,78 @@ STAGES=[
     ("soma","04_soma_character.glb","SOMA 30-joint character"),
     ("animated","07_animated.glb","MotionBricks animation"),
 ]
+
+# Browser RMBG artifacts are allowed only from explicit same-origin POSTs.
+RMBG_FILES={
+    "source":"00_source_input.png",
+    "mask":"00_alpha_mask.png",
+    "cutout":"00_background_removed.png",
+}
+RMBG_MODELS={"patched_fp16","kn4666_fp16","kn4666_q4"}
+RMBG_MAX_BYTES=48*1024*1024
+PNG_SIGNATURE=b"\\x89PNG\\r\\n\\x1a\\n"
+
+
+def validate_rmbg_png(blob):
+    """Bounded PNG header and IHDR CRC validation without image decoding."""
+    if not isinstance(blob,bytes) or len(blob)<45:
+        raise ValueError("Empty or truncated PNG")
+    if len(blob)>RMBG_MAX_BYTES:
+        raise ValueError("PNG exceeds 48 MiB upload limit")
+    if blob[:8]!=PNG_SIGNATURE:
+        raise ValueError("Invalid PNG signature")
+    length,chunk=struct.unpack(">I4s",blob[8:16])
+    if length!=13 or chunk!=b"IHDR":
+        raise ValueError("Missing PNG IHDR")
+    header=blob[16:29]
+    crc=struct.unpack(">I",blob[29:33])[0]
+    if (zlib.crc32(b"IHDR"+header)&0xffffffff)!=crc:
+        raise ValueError("PNG IHDR checksum mismatch")
+    width,height,depth,color,comp,filtr,interlace=struct.unpack(">IIBBBBB",header)
+    if not (1<=width<=8192 and 1<=height<=8192 and width*height<=40_000_000):
+        raise ValueError("PNG resolution too large or invalid")
+    if depth!=8 or color not in (2,6) or comp!=0 or filtr!=0 or interlace!=0:
+        raise ValueError("Expected 8-bit RGB/RGBA noninterlaced PNG")
+    return width,height
+
+
+def save_rmbg_png(work,kind,blob,model):
+    if kind not in RMBG_FILES or model not in RMBG_MODELS:
+        raise ValueError("Unknown RMBG output/model selection")
+    width,height=validate_rmbg_png(blob)
+    work=Path(work).resolve()
+    work.mkdir(parents=True,exist_ok=True)
+    file=work/RMBG_FILES[kind]
+    # A new source invalidates all prior outputs, never combine models/images.
+    if kind=="source":
+        for stale in ("mask","cutout"):
+            (work/RMBG_FILES[stale]).unlink(missing_ok=True)
+        (work/"00_rmbg_metadata.json").unlink(missing_ok=True)
+    if kind=="cutout":
+        for expected in ("source","mask"):
+            existing=work/RMBG_FILES[expected]
+            if not existing.is_file():
+                raise ValueError("Source and alpha mask must be uploaded before cutout")
+            if validate_rmbg_png(existing.read_bytes())!=(width,height):
+                raise ValueError("RMBG image and alpha mask dimensions do not match")
+    tmp=file.with_name(file.name+".tmp")
+    try:
+        with tmp.open("wb") as handle:
+            handle.write(blob)
+        os.replace(tmp,file)
+    finally:
+        tmp.unlink(missing_ok=True)
+    if kind=="cutout":
+        manifest={"version":1,"model":model,"width":width,"height":height,
+                  "generated_at":datetime.now(timezone.utc).isoformat(),
+                  "sha256":{name:hashlib.sha256((work/filename).read_bytes()).hexdigest()
+                             for name,filename in RMBG_FILES.items()}}
+        meta=work/"00_rmbg_metadata.json"
+        temporary=meta.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(manifest,indent=2)+"\\n",encoding="utf-8")
+        os.replace(temporary,meta)
+    return {"ok":True,"kind":kind,"file":file.name,"bytes":len(blob),
+            "width":width,"height":height,"ready":(work/"00_rmbg_metadata.json").is_file()}
 
 def safe_asset(work,name):
     if "/" in name or "\\" in name or not name or name.startswith("."):
@@ -73,10 +145,19 @@ def manifest(work):
         poses=list(json.loads((work/"viewer_poses.json").read_text())["poses"])
     except (KeyError,ValueError,OSError):
         pass
-    source=next((a for a in assets if a["extension"] in
-                (".png",".jpeg",".jpg",".webp") and not a["name"].startswith("screenshot_")),None)
-    return dict(project="I-3D",coordinate_system="glTF right-handed Y-up",
+    source=next((a for a in assets if a["name"]=="00_source_input.png"),None)
+    if source is None:
+        source=next((a for a in assets if a["name"].startswith("original_input")),None)
+    if source is None:
+        source=next((a for a in assets if a["extension"] in
+                     (".png",".jpeg",".jpg",".webp") and not
+                     a["name"].startswith(("00_","screenshot_"))),None)
+    rmbg_ready=(work/"00_rmbg_metadata.json").is_file() and all(
+        (work/name).is_file() for name in RMBG_FILES.values())
+    return dict(project="I-3D_web",coordinate_system="glTF right-handed Y-up",
                 stages=stages,assets=assets,original_image=source,bone_names=names,
+                background_removal_ready=rmbg_ready,
+                background_cutout="/assets/00_background_removed.png" if rmbg_ready else None,
                 saved_poses=sorted(poses),can_pose=stages[3]["available"] and bool(names))
 
 def checked_transform(bone,name):
@@ -214,7 +295,23 @@ def handler_for(work):
         def do_GET(self):return self.route()
         def do_HEAD(self):return self.route(head=True)
         def do_POST(self):
-            if urlparse(self.path).path!="/api/pose":return self.respond({"error":"Unknown route"},404)
+            url=urlparse(self.path)
+            if url.path=="/api/rmbg":
+                if self.headers.get("X-I3D-Action")!="rmbg":
+                    return self.respond({"error":"Missing RMBG action header"},403)
+                if self.headers.get_content_type()!="image/png":
+                    return self.respond({"error":"Expected Content-Type: image/png"},415)
+                length=int(self.headers.get("Content-Length","0") or 0)
+                if length<45 or length>RMBG_MAX_BYTES:
+                    return self.respond({"error":"PNG size outside allowed range"},413)
+                from urllib.parse import parse_qs
+                kind=parse_qs(url.query).get("kind",[""])[0]
+                model=self.headers.get("X-I3D-Model","")
+                try:
+                    return self.respond(save_rmbg_png(work,kind,self.rfile.read(length),model))
+                except (ValueError,OSError) as e:
+                    return self.respond({"error":str(e)},400)
+            if url.path!="/api/pose":return self.respond({"error":"Unknown route"},404)
             if self.headers.get("X-I3D-Action")!="pose":return self.respond({"error":"Missing action header"},403)
             length=int(self.headers.get("Content-Length",0))
             if length<2 or length>1024*1024:return self.respond({"error":"Pose payload exceeds 1 MB"},413)
