@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>I-3D WebGPU — Custom Kernel Lab</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,Segoe UI,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0b1018;color:#dae6f5}
+header{display:flex;align-items:center;gap:14px;padding:16px 22px;background:#141e2b;border-bottom:1px solid #2f4159}
+h1{font-size:20px;margin:0;color:#d6ecff}
+.pill{background:#1b384f;border:1px solid #336e94;border-radius:20px;padding:4px 10px;font-size:11px}
+main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,1fr);max-width:1700px;min-height:calc(100vh - 72px);margin:auto}
+section{padding:20px;border-right:1px solid #263546}
+h2{font-size:16px;margin:0 0 12px}
+p,li{font-size:13px;color:#b0c2d7;line-height:1.55}
+.panel{border:1px solid #30455a;border-radius:11px;padding:15px;background:#121c29;margin-bottom:15px}
+#gpuCanvas{display:block;aspect-ratio:16/10;width:100%;height:auto;border:1px solid #406180;border-radius:8px;touch-action:none;cursor:grab}
+#gpuCanvas:active{cursor:grabbing}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+button{border:1px solid #4d89bf;background:#20456d;color:#f0f8ff;border-radius:6px;padding:9px 12px;cursor:pointer}
+button:hover{background:#2b618f}
+button:disabled{opacity:.5;cursor:wait}
+input{accent-color:#61b6ff;background:#0b1621;border:1px solid #395268;border-radius:4px;color:#dae6f5;padding:6px;width:80px}
+input[type=file]{width:100%}
+fieldset{border:1px solid #2b3f57;margin:0 0 12px;border-radius:8px}
+label{font-size:12px;color:#acc1d8;margin:0 8px 8px 0;display:inline-flex;gap:5px;align-items:center}
+pre{padding:12px;border-radius:6px;background:#060c14;color:#b7e2dc;overflow:auto;font-size:11px;line-height:1.5;max-height:350px;white-space:pre-wrap;word-wrap:break-word}
+a{color:#8fc6ff}
+#status{color:#81deb4;font-size:13px;overflow-wrap:anywhere}
+.small{font-size:11px;color:#8ca2bb}
+@media(max-width:960px){main{grid-template-columns:1fr}section{border-right:none}}
+</style>
+</head>
+<body>
+<header><h1>I-3D · WebGPU</h1><span class="pill">Experimental branch · original WGSL</span><span id="status" role="status">Initializing…</span></header>
+<main>
+<section>
+<div class="panel">
+<h2>GPU-resident depth → point cloud → normals → triangles</h2>
+<p>Compute and rendering both use custom WebGPU shaders. The displayed geometry is a <strong>synthetic test surface</strong>, not an AI-generated 3D model. Drag to orbit, scroll to zoom. No geometry readback into JavaScript.</p>
+<canvas id="gpuCanvas" width="960" height="600" aria-label="GPU-rendered depth surface"></canvas>
+<p id="gridInfo" class="small">No grid loaded. Shader buffers are allocated after a depth input is supplied.</p>
+<fieldset>
+<legend>Procedural test input</legend>
+<label>Width <input id="width" type="number" min="2" max="512" value="96"></label>
+<label>Height <input id="height" type="number" min="2" max="512" value="96"></label>
+<label>Depth relief <input id="amp" type="number" min="0" max="1" step=".05" value=".25"></label>
+<div class="actions"><button id="loadSynthetic">Compute GPU surface</button><button id="screenshot">Save viewport PNG</button></div>
+</fieldset>
+<fieldset>
+<legend>Real data tool: upload depth PNG</legend>
+<p>Upload your <em>depth map</em> (8-bit grayscale encoded in its red channel). Red channel 0–255 is mapped to 0.3–2.3 m; fully transparent pixels are excluded. This is a format converter, <strong>not depth estimation</strong>.</p>
+<input id="depthFile" type="file" accept="image/png,image/jpeg,image/webp">
+<div class="actions" style="margin-top:9px"><button id="loadPNG">Unproject uploaded depth with WGSL</button></div>
+</fieldset>
+</div>
+<div class="panel">
+<h2>Architecture</h2>
+<p>Standalone WGSL operators are kept separate from a cached dispatch runtime. Tensor uploads, quantized weight decoding, camera transforms, skinning, geometry and shading are explicit. A full Hi3D/Hunyuan model port requires additional weights, diffusion graph execution and memory planning; this branch does <strong>not</strong> claim those models currently run here.</p>
+</div>
+</section>
+<section>
+<div class="panel">
+<h2>On-device correctness suite</h2>
+<p>Each operator runs on your actual WebGPU adapter and is checked numerically against an independent CPU implementation. No TensorRT, CUDA or Python dependency. The microbenchmark reports end-to-end <em>host transfer + GPU + readback</em> time, not pure shader duration.</p>
+<button id="runTests">Run custom WGSL correctness tests</button>
+<pre id="log">Press the button to compile and test kernels on this browser's GPU.</pre>
+</div>
+<div class="panel">
+<h2>GPU adapter / capabilities</h2>
+<pre id="device">WebGPU device not yet requested.</pre>
+<p class="small">WebGPU requires HTTPS or localhost. Site must be opened through a server, not from a file:// URL. Browsers have device limits and may reject large weights, even when a CUDA implementation fits on the same machine.</p>
+</div>
+<div class="panel">
+<h2>Relevant source code</h2>
+<p>
+<a href="https://github.com/PrismML-Eng/Talk/blob/main/kernels.ts" target="_blank" rel="noreferrer">PrismML-Eng/Talk: original Bonsai WebGPU runtime</a><br>
+<a href="https://huggingface.co/spaces/webml-community/ternary-bonsai-2-webgpu-kernels/tree/main" target="_blank" rel="noreferrer">Bonsai 2 WGSL reference demo</a><br>
+<a href="https://huggingface.co/blog/webgpu-kernels" target="_blank" rel="noreferrer">Hugging Face WebGPU kernel contracts/benchmarks</a><br>
+<a href="https://github.com/Apache0ne/I-3D/tree/I-3D_web/webgpu" target="_blank" rel="noreferrer">I-3D_web source and tests</a>
+</p>
+</div>
+</section>
+</main>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
