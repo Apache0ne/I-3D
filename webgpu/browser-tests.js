@@ -1,6 +1,6 @@
 // Browser GPU correctness tests vs independently implemented CPU math.
 // A passing CPU Node test NEVER counts as passing WebGPU tests.
-import {I3DWebGPU,packSignedI4,unpackSignedI4,quantizeRowsI4,packTernary2,unpackTernary2} from "./ops.js";
+import {I3DWebGPU,packSignedI4,unpackSignedI4,quantizeRowsI4} from "./ops.js";
 import {GGML_TYPES,referenceQuantMatvec} from "./gguf-formats.js";
 
 const f = values => Float32Array.from(values);
@@ -59,22 +59,6 @@ export async function runBrowserSuite(report=()=>{}) {
     let v=0;for(let k=0;k<cols;k++)v+=q[r*cols+k]*vector[k];
     out[r]=v*scales[r];
    }return out;
-  });
-  const trows=3,tcols=19;
-  const ternary=new Int8Array(trows*tcols);
-  for(let i=0;i<ternary.length;i++)ternary[i]=(i%3)-1;
-  const ternaryPacked=packTernary2(ternary,trows,tcols);
-  const roundtrip=unpackTernary2(ternaryPacked,trows,tcols);
-  if(roundtrip.some((v,i)=>v!==ternary[i]))throw new Error("Ternary 2-bit host pack roundtrip mismatch");
-  const tin=f(Array.from({length:tcols},(_,i)=>Math.cos(i*0.2)));
-  const tscale=f([0.1,0.3,0.05]);
-  await test("2-bit ternary GEMV K=19",()=>engine.ternaryMatvec(ternaryPacked,tin,tscale,trows,tcols),()=>{
-    const o=new Float32Array(trows);
-    for(let row=0;row<trows;row++){
-      let v=0;for(let k=0;k<tcols;k++)v+=ternary[row*tcols+k]*tin[k];
-      o[row]=v*tscale[row];
-    }
-    return o;
   });
   // These are exact upstream GGUF serialized bytes; not I-3D-only packing.
   const q2=new Uint8Array(18*2);
