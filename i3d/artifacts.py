@@ -40,9 +40,13 @@ def validate_glb(path: str | Path) -> Path:
         document = json.loads(metadata)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError(f"Invalid glTF JSON chunk: {path}") from exc
-    if not isinstance(document, dict) or document.get("asset", {}).get("version") != "2.0":
+    if not isinstance(document, dict):
+        raise ValueError(f"Invalid glTF JSON object: {path}")
+    asset = document.get("asset")
+    if not isinstance(asset, dict) or asset.get("version") != "2.0":
         raise ValueError(f"Invalid glTF v2 asset descriptor: {path}")
-    if not document.get("meshes"):
+    meshes = document.get("meshes")
+    if not isinstance(meshes, list) or not meshes:
         raise ValueError(f"GLB contains no meshes: {path}")
     return path
 
