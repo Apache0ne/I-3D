@@ -25,6 +25,7 @@ The Colab notebook from this branch is [here](../notebooks/I-3D_End_to_End_Colab
 |---|---|---|
 | `matmul.wgsl` | `A[M,K] @ B[K,N]` tiled f32 | Attention, feed-forward, projections |
 | `q4_matvec.wgsl` | Signed 4-bit (two's complement), 8 weights/u32, per-row scales | Quantized model projections |
+| `ternary_matvec.wgsl` | Packed 2-bit ternary {-1,0,+1}, 16 weights/u32; **I-3D format, not GGUF** | Low-bit projections |
 | `softmax.wgsl` | Stable f32 row-wise softmax | Attention |
 | `layernorm.wgsl` | Normalization with gamma, beta, epsilon | Transformers |
 | `rmsnorm.wgsl` | Root-mean-square normalization | Transformer blocks |
@@ -52,7 +53,7 @@ The browser **Run custom WGSL correctness tests** button actually executes each 
 
 ## Source research and design choices
 
-- [PrismML-Eng/Talk: readable `kernels.ts`](https://github.com/PrismML-Eng/Talk/blob/main/kernels.ts) is Prism ML's published browser engine for Ternary Bonsai 2. Its structure demonstrates GGUF loading, packed low-bit matrix operators, GPU residence and a browser UI. Its **ternary LLM kernels are not automatically compatible** with 3D diffusion or rigging. No Prism source was copied here.
+- [PrismML-Eng/Talk: readable `kernels.ts`](https://github.com/PrismML-Eng/Talk/blob/main/kernels.ts) is Prism ML's published browser engine for Ternary Bonsai 2. Its structure demonstrates GGUF loading, packed low-bit matrix operators, GPU residence and a browser UI. Its **ternary LLM kernels are not automatically compatible** with 3D diffusion or rigging. The published source also shows a native WebGPU compute-pass executor, GPU-resident bindings and 256-byte-aligned parameter slots. No Prism source was copied here; the current I-3D runtime has its own smaller explicit-dispatch API, not Prism's pooling/graph implementation.
 - [Hugging Face Bonsai 2 WebGPU kernels Space](https://huggingface.co/spaces/webml-community/ternary-bonsai-2-webgpu-kernels/tree/main) contains the public browser demo (its HTML is a bundled source).
 - [Hugging Face WebGPU kernels](https://huggingface.co/blog/webgpu-kernels) describes individually versioned WGSL contracts, reference test vectors and shape-dependent shader variants. We follow this *correctness before speed* architecture while writing original code.
 - [ONNX Runtime Web WebGPU](https://onnxruntime.ai/docs/get-started/with-javascript/web.html) is a potential **transitional** model graph backend. It isn't the core custom runtime and is not integrated in this branch.
