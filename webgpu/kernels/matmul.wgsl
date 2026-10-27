@@ -13,8 +13,9 @@ fn main(@builtin(global_invocation_id) gid:vec3<u32>,
   var value=0.0;
   for(var base:u32=0u;base<shape.k;base=base+8u){
     let ka=base+lid.x; let kb=base+lid.y;
-    ta[lid.y][lid.x]=select(0.0,a[row*shape.k+ka],row<shape.m && ka<shape.k);
-    tb[lid.y][lid.x]=select(0.0,b[kb*shape.n+col],kb<shape.k && col<shape.n);
+    ta[lid.y][lid.x]=0.0;tb[lid.y][lid.x]=0.0;
+    if(row<shape.m && ka<shape.k){ta[lid.y][lid.x]=a[row*shape.k+ka];}
+    if(kb<shape.k && col<shape.n){tb[lid.y][lid.x]=b[kb*shape.n+col];}
     workgroupBarrier();
     for(var j:u32=0u;j<8u;j=j+1u){value=value+ta[lid.y][j]*tb[j][lid.x];}
     workgroupBarrier();
