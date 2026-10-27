@@ -22,6 +22,8 @@ jobs:
           node --check webgpu/ops.js
           node --check webgpu/browser-tests.js
           node --check webgpu/app.js
+      - name: Test browser RMBG handoff API and PNG integrity on CPU
+        run: python -m unittest discover -s tests -p 'test_rmbg_web.py' -v
       - name: Validate Python Colab and viewer sources compile
         run: python -m compileall -q scripts i3d
       - name: Verify dedicated branch and no main target
